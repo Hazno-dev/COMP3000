@@ -23,13 +23,23 @@ public:
 	// Sets default values for this character's properties
 	AMainCharacter();
 
+	// Is character holding punch
+	UPROPERTY(BlueprintReadOnly, Category = "PlayerController")
+	bool Punching = false;
+
 protected:
 
-	/** Called for forwards/backward input */
+	/** Forward/Backwards motion */
 	void MoveForward(float Value);
 
-	/** Called for side to side input */
+	/** Left/Right motion */
 	void MoveRight(float Value);
+
+	/** Start punching */
+	void Punch();
+
+	/** Stop punching */
+	void StopPunch();
 	
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

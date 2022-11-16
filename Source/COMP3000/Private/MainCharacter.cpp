@@ -80,6 +80,8 @@ void AMainCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	check(PlayerInputComponent);
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+	PlayerInputComponent->BindAction("Punch", IE_Pressed, this, &AMainCharacter::Punch);
+	PlayerInputComponent->BindAction("Punch", IE_Released, this, &AMainCharacter::StopPunch);
 
 	PlayerInputComponent->BindAxis("Forward/Backward", this, &AMainCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("Left/Right", this, &AMainCharacter::MoveRight);
@@ -114,4 +116,16 @@ void AMainCharacter::MoveRight(float Value)
 		AddMovementInput(Direction, Value);
 	}
 }
+
+void AMainCharacter::Punch()
+{
+	if (!Punching) Punching = true;
+}
+
+void AMainCharacter::StopPunch()
+{
+	Punching = false;
+}
+
+
 
