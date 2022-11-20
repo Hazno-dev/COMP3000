@@ -1,13 +1,16 @@
 // To avoid direct asset ref in c++, use the blueprint class derived from this for changing mesh/data
 
 #include "MainCharacter.h"
+
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 
 // Sets default values
 AMainCharacter::AMainCharacter()
@@ -60,9 +63,14 @@ AMainCharacter::AMainCharacter()
 void AMainCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	//Assign + possess player Controller Index: 0
 	SavedController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
 	SavedController->Possess(this);
-	
+	SavedController->bShowMouseCursor = true;
+
+	//Assign TChannel for aiming
+	TraceChannel = UEngineTypes::ConvertToTraceType(ECC_Visibility);
 }
 
 // Called every frame
@@ -70,6 +78,11 @@ void AMainCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	SavedController->GetHitResultUnderCursorByChannel(TraceChannel, true, HitResult);
+	FRotator PlayerRot = UKismetMathLibrary::FindLookAtRotation(this->GetActorLocation(), HitResult.Location);
+	FRotator PlayerRotYaw = FRotator(0, PlayerRot.Yaw, 0);
+	PublicRot = PlayerRotYaw;
+	SetActorRotation(PlayerRotYaw);
 }
 
 // Called to bind functionality to input
@@ -85,9 +98,9 @@ void AMainCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
 	PlayerInputComponent->BindAxis("Forward/Backward", this, &AMainCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("Left/Right", this, &AMainCharacter::MoveRight);
-
 }
- 
+
+
 void AMainCharacter::MoveForward(float Value)
 {
 	if (Controller)

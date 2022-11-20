@@ -18,6 +18,8 @@ class COMP3000_API AMainCharacter : public ACharacter
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, Category = Camera)
 	class UCameraComponent* Camera;
+
+	UPROPERTY() APlayerController* SavedController;
 	
 public:
 	// Sets default values for this character's properties
@@ -26,6 +28,9 @@ public:
 	// Is character holding punch
 	UPROPERTY(BlueprintReadOnly, Category = "PlayerController")
 	bool Punching = false;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "PlayerController")
+	FRotator PublicRot = FRotator(0,0,0);
 
 protected:
 
@@ -57,6 +62,10 @@ public:
 	/** Returns FollowCamera subobject **/
 	//FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
-	AController* SavedController;
+private:
+
+	//Aiming & Moving Variables
+	ETraceTypeQuery TraceChannel;
+	FHitResult HitResult;
 
 };
