@@ -6,31 +6,70 @@
 #include "GameFramework/Character.h"
 #include "MainCharacter.generated.h"
 
+
+UENUM(BlueprintType)
+enum class E_PlayerDirection : uint8 {
+	NONE UMETA(DisplayName = "NONE"),
+	LEFT UMETA(DisplayName = "LEFT"),
+	RIGHT UMETA(DisplayName = "RIGHT")
+};
 UCLASS()
 class COMP3000_API AMainCharacter : public ACharacter
 {
 	GENERATED_BODY()
+	
+public:
+	//UNREAL DEFAULTS
+	// Sets default values for this character's properties
+	AMainCharacter();
+	
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
 
-	/** Camera boom positioning the camera behind the character */
+	// Called to bind inputs
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	
+	//COMPONENT DEFINITIONS
+	/** Main Camera */
+	UPROPERTY(VisibleAnywhere, Category = Camera)
+	class UCameraComponent* Camera;
+	
+	/** Camera springarm */
 	UPROPERTY(VisibleAnywhere, Category = Camera)
 	class USpringArmComponent* SpringArm;
 
-	/** Follow camera */
-	UPROPERTY(VisibleAnywhere, Category = Camera)
-	class UCameraComponent* Camera;
+	/** Player Controller reference */
+	UPROPERTY()
+	APlayerController* SavedController;
 
-	UPROPERTY() APlayerController* SavedController;
 	
-public:
-	// Sets default values for this character's properties
-	AMainCharacter();
-
-	// Is character holding punch
+	//PUBLIC PLAYER VARIABLES
+	/** Character holding punch */
 	UPROPERTY(BlueprintReadOnly, Category = "PlayerController")
 	bool Punching = false;
-	
+
+	/** Players rotation  */
 	UPROPERTY(BlueprintReadOnly, Category = "PlayerController")
 	FRotator PublicRot = FRotator(0,0,0);
+
+	/** Players Rotation Direction */
+	UPROPERTY(EditAnywhere, Category = "PlayerController")
+	TEnumAsByte<E_PlayerDirection> PlayerDirection;
+
+	UPROPERTY(EditAnywhere, Category = "PlayerController")
+	bool IsTurning = false;
+	
+	
+	//PLAYER MONTAGES
+	/** Punching Montage  */
+	UPROPERTY(EditAnywhere, Category = "Animations")
+	UAnimMontage* Mon_Punching;
+
+	/** Punching Montage  */
+	UPROPERTY(EditAnywhere, Category = "Animations")
+	UAnimMontage* Mon_Walking;
+	
 
 protected:
 
@@ -49,14 +88,6 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-
-	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
 	/** Returns CameraBoom subobject **/
 	//FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
@@ -64,8 +95,10 @@ public:
 
 private:
 
-	//Aiming & Moving Variables
+	/** Trace Channel for Mouse Aiming */
 	ETraceTypeQuery TraceChannel;
+	
+	/** Hitpoint for Mouse Aiming */
 	FHitResult HitResult;
 
 };
