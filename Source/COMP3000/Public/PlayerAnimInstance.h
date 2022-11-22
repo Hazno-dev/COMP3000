@@ -84,14 +84,10 @@ private:
 	UPROPERTY() float DistanceCurveDiff;
 	/** Players net Yaw offset  */
 	UPROPERTY() float AbsoluteYawRoofOffset;
-	/** Players net Yaw offset  */
-	UPROPERTY() float LeftOrRight;
-	/** Players net Yaw offset  */
-	UPROPERTY() float YawToSub;
 	/** Players last Yaw rot  */
-	UPROPERTY() float LastYaw;
+	UPROPERTY() FRotator LastRot;
 	/** Players current Yaw rot  */
-	UPROPERTY() float CurrentYaw;
+	UPROPERTY() FRotator CurrentRot;
 	/** Players Yaw change/frame  */
 	UPROPERTY() float YawChangeOF;
 	

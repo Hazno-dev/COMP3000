@@ -15,8 +15,8 @@ UPlayerAnimInstance::UPlayerAnimInstance()
 	ShouldMove = false;
 	IsFalling = false;
 	IsPunching = false;
-	LastYaw = 0;
-	CurrentYaw = 0;
+	LastRot = FRotator::ZeroRotator;
+	CurrentRot = FRotator::ZeroRotator;
 	YawRootOffset = 0;
 	DistanceCurve = 0;
 	MaxTurnAngle = 90;
@@ -66,44 +66,34 @@ void UPlayerAnimInstance::MontagePlayer()
 //Handle turning in-place animations for player standing still
 void UPlayerAnimInstance::TurnInPlace()
 {
-	//if (Turning > 0 && DistanceCurve >= 90)
-	//{
-	//	OwningCharacter->SetActorRotation(FRotator(0, OwningCharacter->PublicRot.Yaw, 0));
-	//	if (YawRootOffset > MaxTurnAngle) YawRootOffset = YawRootOffset - MaxTurnAngle;
-	//	else if (YawRootOffset < MaxTurnAngle *-1) YawRootOffset = YawRootOffset + MaxTurnAngle;
-	//}
 	OwningCharacter->GetMesh()->bEnableUpdateRateOptimizations = false;
 	OwningCharacter->GetMesh()->bUpdateJointsFromAnimation = true;
 	OwningCharacter->GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 	OwningCharacter->GetMesh()->SetAllowAnimCurveEvaluation(true);
 
-	LastYaw = CurrentYaw;
-	CurrentYaw = OwningCharacter->PublicRot.Yaw;
-	YawChangeOF = LastYaw - CurrentYaw;
-	if (ShouldMove) {YawRootOffset = 0; return;}
-	YawRootOffset = UKismetMathLibrary::NormalizeAxis(YawChangeOF + YawRootOffset);
+	LastRot = CurrentRot;
+	CurrentRot = OwningCharacter->PublicRot;
+	YawChangeOF = UKismetMathLibrary::NormalizedDeltaRotator(CurrentRot, LastRot).Yaw;
+	if (ShouldMove || IsFalling) {YawRootOffset = 0; return;}
+	YawRootOffset = UKismetMathLibrary::NormalizeAxis(YawRootOffset - YawChangeOF);
+	if (OwningMovement->Velocity.Size() == 0 && OwningMovement->GetCurrentAcceleration() == FVector::ZeroVector) OwningCharacter->SetActorRotation(CurrentRot);
 	Turning = GetCurveValue("Turning");
-	GEngine->AddOnScreenDebugMessage( -1,1.0,FColor::Black, FString::SanitizeFloat(YawRootOffset) );
-	
 	if (Turning > 0)
 	{
-		//OwningCharacter->IsTurning = true;
 		DistanceCurveLF = DistanceCurve;
 		DistanceCurve = GetCurveValue("DistanceCurve");
 		//Set direction to L or R
-		LeftOrRight = 1 - 2*(YawRootOffset > 0);
-		DistanceCurveDiff = DistanceCurveLF - DistanceCurve;
-		YawRootOffset = (DistanceCurveDiff * LeftOrRight) - YawRootOffset;
+		DistanceCurveDiff = DistanceCurve - DistanceCurveLF;
+		YawRootOffset = (YawRootOffset > 0) ? YawRootOffset - DistanceCurveDiff : YawRootOffset + DistanceCurveDiff;
 		AbsoluteYawRoofOffset = UKismetMathLibrary::Abs(YawRootOffset);
 		if (AbsoluteYawRoofOffset > MaxTurnAngle)
 		{
-			YawRootOffset = (YawRootOffset > 0) ? (AbsoluteYawRoofOffset - MaxTurnAngle) * -1 : (AbsoluteYawRoofOffset - MaxTurnAngle) * 1;
-			//YawRootOffset = YawRootOffset - YawToSub;
-			//if (YawRootOffset > MaxTurnAngle) YawRootOffset = YawRootOffset - MaxTurnAngle;
-			//else if (YawRootOffset < MaxTurnAngle *-1) YawRootOffset = YawRootOffset + MaxTurnAngle;
+			const float Excess = AbsoluteYawRoofOffset - MaxTurnAngle;
+			YawRootOffset = (YawRootOffset > 0) ? YawRootOffset - Excess : YawRootOffset + Excess;
 		}
-		//GEngine->AddOnScreenDebugMessage( -1,1.0,FColor::Red, FString::SanitizeFloat(AbsoluteYawRoofOffset) );
-	}
+		if (DistanceCurve == 0 && AbsoluteYawRoofOffset >= 90) YawRootOffset = (YawRootOffset > 0) ? YawRootOffset - MaxTurnAngle : YawRootOffset + MaxTurnAngle;
+		
+	} 
 	
 }
 
