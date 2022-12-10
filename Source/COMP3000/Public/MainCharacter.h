@@ -57,9 +57,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "PlayerController")
 	TEnumAsByte<E_PlayerDirection> PlayerDirection;
 
-	UPROPERTY(EditAnywhere, Category = "PlayerController")
-	bool IsTurning = false;
-	
+	//PUBLIC PLAYER STATS
+	/** Players Health */
+	UPROPERTY(EditAnywhere, Category = "PlayerStats")
+	int PlayerHealth;
 	
 	//PLAYER MONTAGES
 	/** Punching Montage  */
