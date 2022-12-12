@@ -13,7 +13,8 @@ enum ETileType
 	StartTile,
 	EndTile,
 	AdditionalTile,
-	ReplacementTile
+	ReplacementTile,
+	OffTile
 };
 
 UENUM(BlueprintType)
