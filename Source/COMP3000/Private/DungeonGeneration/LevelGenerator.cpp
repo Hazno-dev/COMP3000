@@ -4,6 +4,7 @@
 #include "DungeonGeneration/LevelGenerator.h"
 
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetArrayLibrary.h"
 
 // Sets default values
 ALevelGenerator::ALevelGenerator()
@@ -52,6 +53,8 @@ void ALevelGenerator::GenerateLevel()
 	SetOffTiles(); //Disable vectors inside level generation.
 	TileLayoutGeneration();
 	GenerateNewLinks();
+	GenerateAdditionalTiles();
+	GenerateSpecialTiles();
 	SpawnTileLayout();
 	this->SetActorRotation(FRotator(0, 45, 0));
 }
@@ -73,7 +76,7 @@ void ALevelGenerator::TileLayoutGeneration()
 	//Start Tile
 	FTileInfo BuildInfo;
 	BuildInfo.Type = ETileType::StartTile;
-	BuildInfo.Directions = StartTile->GetDefaultObject<ATileBase>()->TileConnections;
+	BuildInfo.Directions.Add(StartDirection, true);
 	TileLayout.Add(FVector2D(0,0), BuildInfo);
 
 	PreviousLocation = FVector2D(0,0);
@@ -84,7 +87,14 @@ void ALevelGenerator::TileLayoutGeneration()
 	//Loop as many times as ValueAmount (amount of tiles to generate)
 	for (int i = 0; i < ValueAmount; i++)
 	{
-		
+		//Stepback up to two times
+		int random = FMath::RandRange(1, 100);
+		if (random <= StepBackChance && TileLayout.Num() - OffTiles.Num() > 1) {
+			UE_LOG(LogTemp, Warning, TEXT("Reversed"));
+			PreviousLocation = StepBackOne(PreviousLocation);
+			random = FMath::RandRange(1, 100);
+			if (random <= StepBackChance) PreviousLocation = StepBackOne(PreviousLocation);
+		}
 		if (TileLayout.Num() - OffTiles.Num() == 1) CurrentLocation = FindNextRandomLocation(PreviousLocation, StartDirection);
 		else CurrentLocation = FindNextRandomLocation(PreviousLocation, Random);
 		if (CurrentLocation == PreviousLocation) CurrentLocation = Backtracker(PreviousLocation, Random);
@@ -109,7 +119,8 @@ void ALevelGenerator::SpawnTileLayout()
 		switch (Tile.Value.Type)
 		{
 			case ETileType::StartTile:
-				SpawnTile(StartTile, GetTileWorldspace(Tile.Key));
+				if (LinkAssetTiles(Tile, StartTiles) != nullptr) ValidTiles.push_back(LinkAssetTiles(Tile, StartTiles));
+				if (ValidTiles.size() > 0) SpawnTile(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)], GetTileWorldspace(Tile.Key));
 				break;
 			case ETileType::GenericTile:
 				if (LinkAssetTiles(Tile, GenericTiles) != nullptr) ValidTiles.push_back(LinkAssetTiles(Tile, GenericTiles));
@@ -118,6 +129,17 @@ void ALevelGenerator::SpawnTileLayout()
 			case ETileType::EndTile:
 				if (LinkAssetTiles(Tile, EndTiles) != nullptr) ValidTiles.push_back(LinkAssetTiles(Tile, EndTiles));
 				if (ValidTiles.size() > 0) SpawnTile(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)], GetTileWorldspace(Tile.Key));
+				break;
+			case ETileType::AdditionalTile:
+				if (LinkAssetTiles(Tile, AdditionalTiles) != nullptr) ValidTiles.push_back(LinkAssetTiles(Tile, AdditionalTiles));
+				if (ValidTiles.size() > 0) SpawnTile(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)], GetTileWorldspace(Tile.Key));
+				break;
+			case ETileType::SpecialTile:
+				if (LinkAssetTiles(Tile, SpecialTilesCloned) != nullptr) ValidTiles.push_back(LinkAssetTiles(Tile, SpecialTilesCloned));
+				if (ValidTiles.size() > 0) {
+					SpawnTile(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)], GetTileWorldspace(Tile.Key));
+					SpecialTilesCloned.Remove(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)]);
+				}
 				break;
 		}
 	}
@@ -158,29 +180,27 @@ FVector2D ALevelGenerator::FindNextRandomLocation(FVector2D InVec, TEnumAsByte<E
 		}
 		int rand = FMath::RandRange(0, ValidLocations.size() - 1);
 		if (ValidLocations.size() > 1) {
-			if (IsThisCorridor(InVec, ValidDirects[rand]))
-			{
-				CorridorsSpawned++;
-				if (CorridorsSpawned >= MaxInRowAmount)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("Corridors Spawned: %d"), CorridorsSpawned);
-					ValidLocations.erase(ValidLocations.begin() + rand);
-					ValidDirects.erase(ValidDirects.begin() + rand);
-					CorridorsSpawned = 0;
-					if (ValidLocations.size() > 1)
-					{
-						rand = FMath::RandRange(0, ValidLocations.size() - 1);
-						TempDirect = ValidDirects[rand];
-						return ValidLocations[rand];
-					}
-				}
-			}
-			else
-			{
+			if (!IsThisCorridor(InVec, ValidDirects[rand])) {
 				CorridorsSpawned = 0;
 				TempDirect = ValidDirects[rand];
 				return ValidLocations[rand];
 			}
+			CorridorsSpawned++;
+			if (CorridorsSpawned >= MaxInRowAmount + 1)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("BrokenUpCorridors"), CorridorsSpawned);
+				ValidLocations.erase(ValidLocations.begin() + rand);
+				ValidDirects.erase(ValidDirects.begin() + rand);
+				CorridorsSpawned = 0;
+				if (ValidLocations.size() > 1)
+				{
+					rand = FMath::RandRange(0, ValidLocations.size() - 1);
+					TempDirect = ValidDirects[rand];
+					return ValidLocations[rand];
+				}
+			}
+			TempDirect = ValidDirects[rand];
+			return ValidLocations[rand];
 			
 		}
 		if (ValidLocations.size() > 0) {
@@ -199,7 +219,7 @@ FVector2D ALevelGenerator::FindNextRandomLocation(FVector2D InVec, TEnumAsByte<E
 
 FVector2D ALevelGenerator::Backtracker(FVector2D InVec, TEnumAsByte<ECardinalPoints> WantedDirection)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Deadend: %d"), TileLayout.Num());
+	//UE_LOG(LogTemp, Warning, TEXT("Deadend: %d"), TileLayout.Num());
 	TArray<FVector2D> Tilelocations;
 	TileLayout.GenerateKeyArray(Tilelocations);
 	for (int i = 0; i < OffTiles.Num(); i++) Tilelocations.RemoveAt(0);
@@ -208,16 +228,87 @@ FVector2D ALevelGenerator::Backtracker(FVector2D InVec, TEnumAsByte<ECardinalPoi
 	for (counter; counter > 1; counter--)
 	{
 		returnVec = Tilelocations[counter];
-		UE_LOG(LogTemp, Warning, TEXT("ReturnVec: %s"), *returnVec.ToString());
+		//UE_LOG(LogTemp, Warning, TEXT("ReturnVec: %s"), *returnVec.ToString());
 		if (returnVec != FindNextRandomLocation(Tilelocations[counter], WantedDirection))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("ReturnVecDone: %s"), *returnVec.ToString());
-			UE_LOG(LogTemp, Warning, TEXT("Tilelocations: %s"), *Tilelocations[counter].ToString());
+			//UE_LOG(LogTemp, Warning, TEXT("ReturnVecDone: %s"), *returnVec.ToString());
+			//UE_LOG(LogTemp, Warning, TEXT("Tilelocations: %s"), *Tilelocations[counter].ToString());
 			PreviousLocation = Tilelocations[counter];
 			return FindNextRandomLocation(Tilelocations[counter], WantedDirection);
 		}
 	}
 	return InVec;
+}
+
+FVector2D ALevelGenerator::StepBackOne(FVector2D InVec)
+{
+	TArray<FVector2D> Tilelocations;
+	TileLayout.GenerateKeyArray(Tilelocations);
+	for (int i = 0; i < OffTiles.Num(); i++) Tilelocations.RemoveAt(0);
+	if (Tilelocations.Num() > 3) if (TileLayout.FindRef(Tilelocations[Tilelocations.Num() - 2]).Type == ETileType::GenericTile)
+		return Tilelocations[Tilelocations.Num() - 2];
+	UE_LOG(LogTemp, Warning, TEXT("Returned Same"));
+	return InVec;
+}
+
+void ALevelGenerator::GenerateAdditionalTiles()
+{
+	if (AdditionalTilesAmount == 0) return;
+	int rand;
+	FVector2D TempCurrentLocation;
+	FVector2D TempPreviousLocation;
+	TArray<FVector2D> ValidPrevVectors;
+	TArray<FVector2D> ValidCurVectors;
+	TArray<TEnumAsByte<ECardinalPoints>> ValidDirects;
+	
+	for (auto Tile : TileLayout)
+	{
+		if (Tile.Value.Type == GenericTile)
+		{
+			TempPreviousLocation = Tile.Key;
+			TempCurrentLocation = FindNextRandomLocation(TempPreviousLocation, Random);
+			if (TempCurrentLocation != TempPreviousLocation)
+			{
+				ValidPrevVectors.Add(TempPreviousLocation);
+				ValidCurVectors.Add(TempCurrentLocation);
+				ValidDirects.Add(TempDirect);
+			}
+		}
+	}
+	for (int i = 0; i < AdditionalTilesAmount; i++)
+	{
+		if (ValidPrevVectors.IsEmpty()) break;
+		FTileInfo TempAdditional;
+		TempAdditional.Type = AdditionalTile;
+		rand = FMath::RandRange(0, ValidPrevVectors.Num() - 1);
+		TileLayout.Add(ValidCurVectors[rand], TempAdditional);
+		TileConnector(ValidPrevVectors[rand], ValidCurVectors[rand], ValidDirects[rand]);
+		ValidPrevVectors.RemoveAt(rand);
+		ValidCurVectors.RemoveAt(rand);
+		ValidDirects.RemoveAt(rand);
+	}
+}
+
+void ALevelGenerator::GenerateSpecialTiles()
+{
+	if (SpecialTiles.Num() == 0) return;
+
+	FTileInfo SpecialInfo;
+	SpecialInfo.Type = ETileType::SpecialTile;
+	for (auto CurrentSpecial : SpecialTiles)
+	{
+		for (auto Tile : TileLayout)
+		{
+			if (LinkAssetTile(Tile, CurrentSpecial) && (Tile.Value.Type == ETileType::GenericTile
+				|| Tile.Value.Type == ETileType::AdditionalTile))
+			{
+				SpecialInfo.Directions = Tile.Value.Directions;
+				TileLayout.Add(Tile.Key, SpecialInfo);
+				SpecialTilesCloned.Add(CurrentSpecial);
+				break;
+			}
+		}
+	}
 }
 
 void ALevelGenerator::TileConnector(FVector2D FirstTileVec, FVector2D SecondTileVec, TEnumAsByte<ECardinalPoints> FirstCardinal)
@@ -250,22 +341,37 @@ UClass* ALevelGenerator::LinkAssetTiles(TTuple<UE::Math::TVector2<double>, FTile
 	return nullptr;
 }
 
+bool ALevelGenerator::LinkAssetTile(TTuple<UE::Math::TVector2<double>, FTileInfo> InTile, UClass* InClass)
+{
+	TArray<bool> CurrentTileMapDirections;
+	TArray<bool> CurrentTileListDirections;
+	InTile.Value.Directions.GenerateValueArray(CurrentTileMapDirections);
+	InClass->GetDefaultObject<ATileBase>()->TileConnections.GenerateValueArray(CurrentTileListDirections);
+	for (int i = 0; i < 4; i++)
+	{
+		if (CurrentTileMapDirections[i] != CurrentTileListDirections[i]) break;
+		if (i == 3) return true;
+	}
+	return false;
+}
+
 void ALevelGenerator::GenerateNewLinks()
 {
 	int counter = 0;
+	if (ExtraLinksAmount == 0) return;
 	for (auto Tile : TileLayout)
 	{
-		if (counter >= ExtraLinksAmount) break;
+		if (counter >= (ExtraLinksAmount + 1)) return;
 		
 		std::vector<TTuple<UE::Math::TVector2<double>, FTileInfo>> ValidLocations;
 		for (auto CurrentSeek : SeekingPoints) {
 			if (TileLayout.Find(Tile.Key + CurrentSeek.Value) != nullptr
 				&& TileLayout.Find(Tile.Key + CurrentSeek.Value)->Type == ETileType::GenericTile
 				&& Tile.Value.Type == ETileType::GenericTile
-				&& counter < ExtraLinksAmount) {
+				&& counter < (ExtraLinksAmount + 1)) {
 				if (!AreTilesConnected(Tile.Key + CurrentSeek.Value, CurrentSeek.Key))
 				{
-					TileConnector(Tile.Key, Tile.Key + CurrentSeek.Value, CurrentSeek.Key);
+					if (counter != 0) TileConnector(Tile.Key, Tile.Key + CurrentSeek.Value, CurrentSeek.Key);
 					counter++;
 				}
 			}

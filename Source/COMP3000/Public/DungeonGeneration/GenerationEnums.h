@@ -13,7 +13,7 @@ enum ETileType
 	StartTile,
 	EndTile,
 	AdditionalTile,
-	ReplacementTile,
+	SpecialTile,
 	OffTile
 };
 

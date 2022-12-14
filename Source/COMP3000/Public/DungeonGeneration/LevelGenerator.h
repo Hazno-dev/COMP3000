@@ -23,13 +23,19 @@ public:
 
 	//Tile references
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tiles")
-	UClass* StartTile;
+	TArray<UClass*> StartTiles;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tiles")
 	TArray<UClass*> GenericTiles;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tiles")
 	TArray<UClass*> EndTiles;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tiles")
+	TArray<UClass*> AdditionalTiles;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tiles")
+	TArray<UClass*> SpecialTiles;
 	
 	//Defining data
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
@@ -43,15 +49,18 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	int MaxInRowAmount;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	int AdditionalTilesAmount;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TEnumAsByte<ECardinalPoints> StartDirection;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
-	TEnumAsByte<ECardinalPoints> OffDirection;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TArray<FVector2D> OffTiles;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data", meta=(ClampMin = 0.0f, ClampMax = 50.0f))
+	float StepBackChance;
 	
 	//Generation Functions
 	UFUNCTION()
@@ -79,6 +88,12 @@ public:
 	FVector2D Backtracker(FVector2D InVec, TEnumAsByte<ECardinalPoints> WantedDirection);
 
 	UFUNCTION()
+	void GenerateAdditionalTiles();
+	
+	UFUNCTION()
+	void GenerateSpecialTiles();
+
+	UFUNCTION()
 	void TileConnector(FVector2D FirstTileVec, FVector2D SecondTileVec, TEnumAsByte<ECardinalPoints> FirstCardinal);
 
 	UFUNCTION()
@@ -98,8 +113,14 @@ public:
 
 	UFUNCTION()
 	bool IsThisCorridor(FVector2D InVec, TEnumAsByte<ECardinalPoints> Direction);
+
+	UFUNCTION()
+	FVector2D StepBackOne(FVector2D InVec);
+	
 	
 	UClass* LinkAssetTiles(TTuple<UE::Math::TVector2<double>, FTileInfo> InTile, TArray<UClass*> InList);
+
+	bool LinkAssetTile(TTuple<UE::Math::TVector2<double>, FTileInfo> InTile, UClass* InClass);
 
 	
 protected:
@@ -114,6 +135,7 @@ private:
 	TArray<ATileBase*> SpawnedTiles;
 	APlayerController* PlayerController;
 	int CorridorsSpawned;
+	TArray<UClass*> SpecialTilesCloned;
 	
 public:	
 	// Called every frame
