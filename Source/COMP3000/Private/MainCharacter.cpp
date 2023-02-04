@@ -21,6 +21,7 @@ AMainCharacter::AMainCharacter()
 	//Initiate Camera + Arm components
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
+	AIStimuliSource = CreateDefaultSubobject<UAIPerceptionStimuliSourceComponent>(TEXT("AIStimuliSource"));
 	
 	// Collider Settings
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);

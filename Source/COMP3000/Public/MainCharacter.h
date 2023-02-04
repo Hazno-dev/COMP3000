@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Perception/AIPerceptionStimuliSourceComponent.h"
 #include "MainCharacter.generated.h"
 
 
@@ -70,8 +71,10 @@ public:
 	/** Punching Montage  */
 	UPROPERTY(EditAnywhere, Category = "Animations")
 	UAnimMontage* Mon_Walking;
-	
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UAIPerceptionStimuliSourceComponent> AIStimuliSource;
+	
 protected:
 
 	/** Forward/Backwards motion */
@@ -88,11 +91,6 @@ protected:
 	
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-
-	/** Returns CameraBoom subobject **/
-	//FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
-	/** Returns FollowCamera subobject **/
-	//FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
 private:
 

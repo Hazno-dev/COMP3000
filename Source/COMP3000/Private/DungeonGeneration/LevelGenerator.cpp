@@ -3,6 +3,8 @@
 
 #include "DungeonGeneration/LevelGenerator.h"
 
+#include <string>
+
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetArrayLibrary.h"
 
@@ -13,6 +15,7 @@ ALevelGenerator::ALevelGenerator()
 	PrimaryActorTick.bCanEverTick = true;
 
 	TilesSize = FVector(3000, 3000, 3000);
+	CurrentResetAttempts = 0;
 
 	//Points to seek in generation
 	SeekingPoints.Add(ECardinalPoints::North, FVector2D(1, 0));
@@ -41,6 +44,7 @@ void ALevelGenerator::Tick(float DeltaTime)
 	{
 		if (PlayerController->WasInputKeyJustPressed(EKeys::E))
 		{
+			CurrentResetAttempts = 0;
 			ResetGeneratedLevel();
 			GenerateLevel();
 		}
@@ -52,11 +56,18 @@ void ALevelGenerator::GenerateLevel()
 {
 	SetOffTiles(); //Disable vectors inside level generation.
 	TileLayoutGeneration();
-	GenerateNewLinks();
-	GenerateAdditionalTiles();
-	GenerateSpecialTiles();
-	SpawnTileLayout();
-	this->SetActorRotation(FRotator(0, 45, 0));
+	if (!IsStartEndTooClose()  || CurrentResetAttempts > 3) {
+		GenerateNewLinks();
+		GenerateAdditionalTiles();
+		GenerateSpecialTiles();
+		SpawnTileLayout();
+		this->SetActorRotation(FRotator(0, 45, 0));
+	}
+	else {
+		CurrentResetAttempts += 1;
+		ResetGeneratedLevel();
+		GenerateLevel();
+	}
 }
 
 void ALevelGenerator::ResetGeneratedLevel()
@@ -104,8 +115,11 @@ void ALevelGenerator::TileLayoutGeneration()
 	}
 	
 	MakerInfo.Type = ETileType::EndTile;
-	CurrentLocation = FindNextRandomLocation(PreviousLocation, Random);
-	if (CurrentLocation == PreviousLocation) CurrentLocation = Backtracker(PreviousLocation, Random);
+	if (SpawnEndFurthest) CurrentLocation = FurthestFromStart(PreviousLocation, Random);
+	if (CurrentLocation == PreviousLocation || !SpawnEndFurthest) {
+		CurrentLocation = FindNextRandomLocation(PreviousLocation, Random);
+		if (CurrentLocation == PreviousLocation) CurrentLocation = Backtracker(PreviousLocation, Random);
+	}
 	TileLayout.Add(CurrentLocation, MakerInfo);
 	TileConnector(PreviousLocation, CurrentLocation, TempDirect);
 }
@@ -129,6 +143,7 @@ void ALevelGenerator::SpawnTileLayout()
 			case ETileType::EndTile:
 				if (LinkAssetTiles(Tile, EndTiles) != nullptr) ValidTiles.push_back(LinkAssetTiles(Tile, EndTiles));
 				if (ValidTiles.size() > 0) SpawnTile(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)], GetTileWorldspace(Tile.Key));
+				DistanceBetweenVec(FVector2D(0,0), Tile.Key);
 				break;
 			case ETileType::AdditionalTile:
 				if (LinkAssetTiles(Tile, AdditionalTiles) != nullptr) ValidTiles.push_back(LinkAssetTiles(Tile, AdditionalTiles));
@@ -247,7 +262,47 @@ FVector2D ALevelGenerator::StepBackOne(FVector2D InVec)
 	for (int i = 0; i < OffTiles.Num(); i++) Tilelocations.RemoveAt(0);
 	if (Tilelocations.Num() > 3) if (TileLayout.FindRef(Tilelocations[Tilelocations.Num() - 2]).Type == ETileType::GenericTile)
 		return Tilelocations[Tilelocations.Num() - 2];
-	UE_LOG(LogTemp, Warning, TEXT("Returned Same"));
+	return InVec;
+}
+
+int ALevelGenerator::DistanceBetweenVec(FVector2D Vec1, FVector2D Vec2)
+{
+	 return FMath::RoundToInt(FVector2D::Distance(Vec1, Vec2));;
+}
+
+bool ALevelGenerator::IsStartEndTooClose()
+{
+	for (auto CurrentTile : TileLayout) {
+		if (CurrentTile.Value.Type != EndTile) continue;
+		UE_LOG(LogTemp, Warning, TEXT("Returned: %i"), DistanceBetweenVec(FVector2D(0,0), CurrentTile.Key));
+		if (DistanceBetweenVec(FVector2D(0,0), CurrentTile.Key) <= MinStartEndDistance) return true;
+	}
+	return false;
+}
+
+FVector2D ALevelGenerator::FurthestFromStart(FVector2D InVec, TEnumAsByte<ECardinalPoints> Direction)
+{
+	TArray<FVector2D> FurthestArray;
+	int CurrentFurthestDist = 0;
+	FVector2D TempPreviousLocation = InVec;
+	FVector2D TempCurrentLocation = TempPreviousLocation;
+	
+	for (auto CurrentTile : TileLayout) {
+		if (CurrentTile.Value.Type != ETileType::GenericTile) continue;
+		if (DistanceBetweenVec(FVector2D(0,0), CurrentTile.Key) > CurrentFurthestDist) {
+			CurrentFurthestDist = DistanceBetweenVec(FVector2D(0,0), CurrentTile.Key);
+			FurthestArray.Add(CurrentTile.Key);
+		}
+	}
+	if (FurthestArray.IsEmpty()) return InVec;
+	for (int i = FurthestArray.Num() - 1; i >= 0; i--) {
+		TempPreviousLocation = FurthestArray[i];
+		TempCurrentLocation = FindNextRandomLocation(TempPreviousLocation, Random);
+		if (TempCurrentLocation != TempPreviousLocation) {
+			PreviousLocation = TempPreviousLocation;
+			return TempCurrentLocation;
+		}
+	}
 	return InVec;
 }
 

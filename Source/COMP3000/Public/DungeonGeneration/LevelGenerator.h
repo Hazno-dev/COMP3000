@@ -38,29 +38,45 @@ public:
 	TArray<UClass*> SpecialTiles;
 	
 	//Defining data
+	/** Real-World Size Of Tile BPs */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	FVector TilesSize;
 
+	/** How Many Generics Should Be Created (Length Of Dungeon) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	int ValueAmount;
 
+	/** How Many Links Should Be Made */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	int ExtraLinksAmount;
-	
+
+	/** How Many W/E N/S Can Spawn In A Row */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	int MaxInRowAmount;
 
+	/** Amount Of Extra Tiles To Add */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	int AdditionalTilesAmount;
-	
+
+	/** Direction To Start */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TEnumAsByte<ECardinalPoints> StartDirection;
 
+	/** Vectors In Here Won't Be Considered For Generation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TArray<FVector2D> OffTiles;
 
+	/** Chance Of Stepping Back Each Time A Tile Is Generated */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data", meta=(ClampMin = 0.0f, ClampMax = 50.0f))
 	float StepBackChance;
+
+	/** Minimum Distance Start-End Needs To Be (Straight line from A-B) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	int MinStartEndDistance;
+
+	/** Spawn End Tile Furthest From Start? */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	bool SpawnEndFurthest;
 	
 	//Generation Functions
 	UFUNCTION()
@@ -116,6 +132,15 @@ public:
 
 	UFUNCTION()
 	FVector2D StepBackOne(FVector2D InVec);
+
+	UFUNCTION()
+	int DistanceBetweenVec(FVector2D Vec1, FVector2D Vec2);
+
+	UFUNCTION()
+	bool IsStartEndTooClose();
+
+	UFUNCTION()
+	FVector2D FurthestFromStart(FVector2D InVec, TEnumAsByte<ECardinalPoints> Direction);
 	
 	
 	UClass* LinkAssetTiles(TTuple<UE::Math::TVector2<double>, FTileInfo> InTile, TArray<UClass*> InList);
@@ -136,6 +161,7 @@ private:
 	APlayerController* PlayerController;
 	int CorridorsSpawned;
 	TArray<UClass*> SpecialTilesCloned;
+	int CurrentResetAttempts;
 	
 public:	
 	// Called every frame
