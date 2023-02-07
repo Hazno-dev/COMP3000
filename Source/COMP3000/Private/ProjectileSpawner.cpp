@@ -14,6 +14,8 @@ UProjectileSpawner::UProjectileSpawner()
 
 
 void UProjectileSpawner::SpawnProjectile(FVector Location, FRotator Rotation) {
+	if (ProjectileClass == nullptr) return;
+	
 	AProjectileBase* SpawnedProjectile = GetWorld()->SpawnActor<AProjectileBase>(ProjectileClass, Location, Rotation, FActorSpawnParameters());
 	SpawnedProjectile->ProjectileMovement->Velocity *= ProjectileSpeed;
 }

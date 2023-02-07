@@ -26,7 +26,7 @@ void AProjectileBase::BeginPlay()
 {
 	Super::BeginPlay();
 	//spawn system at location
-	UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), MuzzleVFX, GetActorLocation(), GetActorRotation());
+	if (MuzzleVFX != nullptr) UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), MuzzleVFX, GetActorLocation(), GetActorRotation());
 	CollisionSphere->OnComponentHit.AddDynamic(this, &AProjectileBase::OnHit);
 }
 
