@@ -60,8 +60,8 @@ void UPlayerAnimInstance::MontagePlayer()
 	else if (!IsPunching && this->Montage_IsPlaying(OwningCharacter->Mon_Punching)) this->Montage_Stop(0.2, OwningCharacter->Mon_Punching);
 
 	//Walking start
-	if (!IsPunching && ShouldMove && !this->Montage_IsPlaying(OwningCharacter->Mon_Walking)) this->Montage_Play(OwningCharacter->Mon_Walking, 1);
-	else if (!IsPunching && !ShouldMove && this->Montage_IsPlaying(OwningCharacter->Mon_Walking)) this->Montage_Stop(0.2, OwningCharacter->Mon_Walking);
+	//if (!IsPunching && ShouldMove && !this->Montage_IsPlaying(OwningCharacter->Mon_Walking)) this->Montage_Play(OwningCharacter->Mon_Walking, 1);
+	//else if (!IsPunching && !ShouldMove && this->Montage_IsPlaying(OwningCharacter->Mon_Walking)) this->Montage_Stop(0.2, OwningCharacter->Mon_Walking);
 }
 
 //Handle turning in-place animations for player standing still
