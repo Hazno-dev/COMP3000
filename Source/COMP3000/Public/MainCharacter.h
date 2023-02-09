@@ -16,6 +16,12 @@ enum class E_PlayerDirection : uint8 {
 	LEFT UMETA(DisplayName = "LEFT"),
 	RIGHT UMETA(DisplayName = "RIGHT")
 };
+
+enum class E_PlayerState : uint8 {
+	IDLE UMETA(DisplayName = "IDLE"),
+	WALK UMETA(DisplayName = "WALK"),
+	DASH UMETA(DisplayName = "DASH")
+};
 UCLASS()
 class COMP3000_API AMainCharacter : public ACharacter
 {
@@ -46,7 +52,6 @@ public:
 	/** Player Controller reference */
 	UPROPERTY()
 	APlayerController* SavedController;
-
 	
 	//PUBLIC PLAYER VARIABLES
 	/** Character holding punch */
@@ -352,6 +357,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Asset Data")
 	UMaterialInterface* MaskReference;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara")
+	UNiagaraSystem* DashEffect;
 	
 protected:
 
@@ -369,6 +377,11 @@ protected:
 	
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	/* Dash */
+	void StartDash();
+
+	void EndDash();
 
 private:
 
@@ -392,4 +405,6 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
+
+	FVector DashVector;
 };

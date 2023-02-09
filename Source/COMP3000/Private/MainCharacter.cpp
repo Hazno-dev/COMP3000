@@ -2,6 +2,7 @@
 
 #include "MainCharacter.h"
 
+#include "TimerManager.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
@@ -167,6 +168,7 @@ void AMainCharacter::BeginPlay()
 	SetMeshes(HeroDataArray[0]);
 }
 
+
 // Called every frame
 void AMainCharacter::Tick(float DeltaTime)
 {
@@ -189,6 +191,7 @@ void AMainCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 	PlayerInputComponent->BindAction("Punch", IE_Pressed, this, &AMainCharacter::Punch);
 	PlayerInputComponent->BindAction("Punch", IE_Released, this, &AMainCharacter::StopPunch);
+	PlayerInputComponent->BindAction("Dash", IE_Pressed, this, &AMainCharacter::StartDash);
 
 	PlayerInputComponent->BindAxis("Forward/Backward", this, &AMainCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("Left/Right", this, &AMainCharacter::MoveRight);
@@ -250,6 +253,31 @@ void AMainCharacter::StopPunch()
 {
 	Punching = false;
 }
+
+void AMainCharacter::StartDash() {
+
+	FTimerHandle DelayHandle;
+
+	DashVector = GetActorForwardVector();
+	GetMesh()->SetHiddenInGame(true, true);
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), DashEffect, GetActorLocation(), GetActorRotation());
+	GetCharacterMovement()->Deactivate();
+	
+	GetWorld()->GetTimerManager().SetTimer(DelayHandle, this, &AMainCharacter::EndDash, 0.4f, false);
+}
+
+void AMainCharacter::EndDash() {
+	GetMesh()->SetHiddenInGame(false, true);
+	GetMesh()->SetHiddenInGame(true, false);
+
+	GetCharacterMovement()->Activate();
+	FVector DashPosition = GetActorLocation() + DashVector * 1000;
+	SetActorLocation(DashPosition, true);
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), DashEffect, GetActorLocation(), GetActorRotation());
+
+	
+}
+
 
 void AMainCharacter::GenerateHero(UPARAM(ref) FHeroDataStruct& InHero) {
 	//Gendered Data
@@ -339,7 +367,6 @@ void AMainCharacter::GenerateHero(UPARAM(ref) FHeroDataStruct& InHero) {
 
 	InHero.BodyArtColourInt = UKismetMathLibrary::RandomIntegerInRange(0, BodyArtColourArray.Num() - 1);
 }
-
 
 void AMainCharacter::SetMaterials() {
 	GHead->SetMaterial(0, DynamicMaterial);
