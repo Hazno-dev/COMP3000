@@ -5,6 +5,7 @@
 
 #include <string>
 
+#include "Engine/LevelStreaming.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetArrayLibrary.h"
 
@@ -61,7 +62,7 @@ void ALevelGenerator::GenerateLevel()
 		GenerateAdditionalTiles();
 		GenerateSpecialTiles();
 		SpawnTileLayout();
-		this->SetActorRotation(FRotator(0, 45, 0));
+		//this->SetActorRotation(FRotator(0, 45, 0));
 	}
 	else {
 		CurrentResetAttempts += 1;
@@ -130,29 +131,31 @@ void ALevelGenerator::SpawnTileLayout()
 	for (auto Tile : TileLayout)
 	{
 		std::vector<UClass*> ValidTiles;
+		std::vector<TEnumAsByte<EConnectionType>> ValidConnections;
+		
 		switch (Tile.Value.Type)
 		{
 			case ETileType::StartTile:
 				if (LinkAssetTiles(Tile, StartTiles) != nullptr) ValidTiles.push_back(LinkAssetTiles(Tile, StartTiles));
-				if (ValidTiles.size() > 0) SpawnTile(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)], GetTileWorldspace(Tile.Key));
+				if (ValidTiles.size() > 0) SpawnTile(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)], GetTileWorldspace(Tile.Key), RotationAmount(Tile.Value));
 				break;
 			case ETileType::GenericTile:
 				if (LinkAssetTiles(Tile, GenericTiles) != nullptr) ValidTiles.push_back(LinkAssetTiles(Tile, GenericTiles));
-				if (ValidTiles.size() > 0) SpawnTile(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)], GetTileWorldspace(Tile.Key));
+				if (ValidTiles.size() > 0) SpawnTile(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)], GetTileWorldspace(Tile.Key), RotationAmount(Tile.Value));
 				break;
 			case ETileType::EndTile:
 				if (LinkAssetTiles(Tile, EndTiles) != nullptr) ValidTiles.push_back(LinkAssetTiles(Tile, EndTiles));
-				if (ValidTiles.size() > 0) SpawnTile(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)], GetTileWorldspace(Tile.Key));
+				if (ValidTiles.size() > 0) SpawnTile(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)], GetTileWorldspace(Tile.Key), RotationAmount(Tile.Value));
 				DistanceBetweenVec(FVector2D(0,0), Tile.Key);
 				break;
 			case ETileType::AdditionalTile:
 				if (LinkAssetTiles(Tile, AdditionalTiles) != nullptr) ValidTiles.push_back(LinkAssetTiles(Tile, AdditionalTiles));
-				if (ValidTiles.size() > 0) SpawnTile(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)], GetTileWorldspace(Tile.Key));
+				if (ValidTiles.size() > 0) SpawnTile(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)], GetTileWorldspace(Tile.Key), RotationAmount(Tile.Value));
 				break;
 			case ETileType::SpecialTile:
 				if (LinkAssetTiles(Tile, SpecialTilesCloned) != nullptr) ValidTiles.push_back(LinkAssetTiles(Tile, SpecialTilesCloned));
 				if (ValidTiles.size() > 0) {
-					SpawnTile(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)], GetTileWorldspace(Tile.Key));
+					SpawnTile(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)], GetTileWorldspace(Tile.Key), RotationAmount(Tile.Value));
 					SpecialTilesCloned.Remove(ValidTiles[FMath::RandRange(0, ValidTiles.size()-1)]);
 				}
 				break;
@@ -161,7 +164,7 @@ void ALevelGenerator::SpawnTileLayout()
 }
 
 //Spawn a Tile
-void ALevelGenerator::SpawnTile(UClass* TileClass, const FVector& position)
+void ALevelGenerator::SpawnTile(UClass* TileClass, const FVector& position, int Rotation = 0)
 {
 	//SpawnedActor Rules
 	FActorSpawnParameters SpawnInfo;
@@ -169,8 +172,21 @@ void ALevelGenerator::SpawnTile(UClass* TileClass, const FVector& position)
 	FAttachmentTransformRules TransformInfo (EAttachmentRule::KeepRelative,
 		EAttachmentRule::SnapToTarget, EAttachmentRule::KeepRelative,true);
 	
-	ATileBase* TempTile = GetWorld()->SpawnActor<ATileBase>(TileClass, position, FRotator::ZeroRotator, SpawnInfo);
+	ATileBase* TempTile = GetWorld()->SpawnActor<ATileBase>(TileClass, position, FRotator(0,Rotation,0), SpawnInfo);
 	TempTile->AttachToActor(this, TransformInfo);
+	TempTile->SetActorRotation(FRotator(0,Rotation,0));
+
+	//gengine rotation parameter
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::FromInt(Rotation));
+
+	if (TempTile->LevelName != "") {
+		TempTile->LevelInstance = UGameplayStatics::GetStreamingLevel(GetWorld(), TempTile->LevelName)
+			->CreateInstance(FString("Tile" + FString::FromInt(SpawnedTiles.Num())));
+		if (TempTile->bMultiDirectional) TempTile->LevelInstance->LevelTransform = FTransform(FRotator(0,Rotation,0), TempTile->GetActorLocation());
+		else TempTile->LevelInstance->LevelTransform = FTransform(FRotator(0,0,0), TempTile->GetActorLocation());
+		TempTile->LevelInstance->SetShouldBeLoaded(true);
+		TempTile->LevelInstance->SetShouldBeVisible(true);
+	}
 	SpawnedTiles.Add(TempTile);
 }
 
@@ -380,19 +396,28 @@ void ALevelGenerator::SetConnection(FVector2D InTileVec, TEnumAsByte<ECardinalPo
 
 UClass* ALevelGenerator::LinkAssetTiles(TTuple<UE::Math::TVector2<double>, FTileInfo> InTile, TArray<UClass*> InList)
 {
+	TArray<bool> CurrentTileMapDirections;
+	InTile.Value.Directions.GenerateValueArray(CurrentTileMapDirections);
+	TEnumAsByte<EConnectionType> CurrentTileConnection = GetConnectionType(CurrentTileMapDirections);
+	std::vector<UClass*> ValidTiles;
+	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("CurrentTileConnection: %i"), CurrentTileConnection));
+	
 	for (auto CurrentGenericTile : InList)
 	{
-		//Loop through current tile, compare against list of generics. If both directions are equal, add to list of valid spawns for a tile.
-		TArray<bool> CurrentTileMapDirections;
-		TArray<bool> CurrentTileListDirections;
-		InTile.Value.Directions.GenerateValueArray(CurrentTileMapDirections);
-		CurrentGenericTile->GetDefaultObject<ATileBase>()->TileConnections.GenerateValueArray(CurrentTileListDirections);
-		for (int i = 0; i < 4; i++)
-		{
-			if (CurrentTileMapDirections[i] != CurrentTileListDirections[i]) break;
-			if (i == 3) return CurrentGenericTile;
+		if (CurrentTileConnection == CurrentGenericTile->GetDefaultObject<ATileBase>()->ConnectionType) {
+			if (CurrentGenericTile->GetDefaultObject<ATileBase>()->bMultiDirectional) ValidTiles.push_back(CurrentGenericTile);
+			else {
+				TArray<bool> CurrentTileListDirections;
+				CurrentGenericTile->GetDefaultObject<ATileBase>()->TileConnections.GenerateValueArray(CurrentTileListDirections);
+				for (int i = 0; i < 4; i++)
+				{
+					if (CurrentTileMapDirections[i] != CurrentTileListDirections[i]) break;
+					if (i == 3) ValidTiles.push_back(CurrentGenericTile);
+				}
+			}
 		}
 	}
+	if (ValidTiles.size() > 0) return ValidTiles[FMath::RandRange(0, ValidTiles.size() - 1)];
 	return nullptr;
 }
 
@@ -409,6 +434,65 @@ bool ALevelGenerator::LinkAssetTile(TTuple<UE::Math::TVector2<double>, FTileInfo
 	}
 	return false;
 }
+
+TEnumAsByte<EConnectionType> ALevelGenerator::GetConnectionType(TArray<bool> Direction) {
+	
+	if (Direction[0] && Direction[1] && Direction[2] && Direction[3]) return EConnectionType::Fourway;
+	
+	if (Direction[0] && Direction[1] && Direction[2] && !Direction[3]) return EConnectionType::Threeway;
+	if (Direction[0] && Direction[1] && Direction[3] && !Direction[2]) return EConnectionType::Threeway;
+	if (Direction[0] && Direction[2] && Direction[3] && !Direction[1]) return EConnectionType::Threeway;
+	if (Direction[1] && Direction[2] && Direction[3] && !Direction[0]) return EConnectionType::Threeway;
+	
+	if (Direction[0] && Direction[1] && !Direction[2] && !Direction[3]) return EConnectionType::Corner;
+	if (Direction[0] && Direction[3] && !Direction[1] && !Direction[2]) return EConnectionType::Corner;
+	if (Direction[2] && Direction[3] && !Direction[1] && !Direction[0]) return EConnectionType::Corner;
+	if (Direction[2] && Direction[1] && !Direction[0] && !Direction[3]) return EConnectionType::Corner;
+	
+	if (Direction[0] && Direction[2] && !Direction[1] && !Direction[3]) return EConnectionType::Line;
+	if (Direction[1] && Direction[3] && !Direction[0] && !Direction[2]) return EConnectionType::Line;
+
+	if (Direction[0] && !Direction[1] && !Direction[2] && !Direction[3]) return EConnectionType::Single;
+	if (Direction[1] && !Direction[0] && !Direction[2] && !Direction[3]) return EConnectionType::Single;
+	if (Direction[2] && !Direction[0] && !Direction[1] && !Direction[3]) return EConnectionType::Single;
+	if (Direction[3] && !Direction[0] && !Direction[1] && !Direction[2]) return EConnectionType::Single;
+	
+	return EConnectionType::NONE;
+}
+
+int ALevelGenerator::RotationAmount(FTileInfo InTile) {
+	TArray<bool> CurrentTileMapDirections;
+	InTile.Directions.GenerateValueArray(CurrentTileMapDirections);
+
+	//Fourway
+	if (CurrentTileMapDirections[0] && CurrentTileMapDirections[1] && CurrentTileMapDirections[2] && CurrentTileMapDirections[3]) return 0;
+
+	//Threeway
+	if (CurrentTileMapDirections[0] && CurrentTileMapDirections[1] && CurrentTileMapDirections[3] && !CurrentTileMapDirections[2]) return 0;
+	if (CurrentTileMapDirections[0] && CurrentTileMapDirections[1] && CurrentTileMapDirections[2] && !CurrentTileMapDirections[3]) return 90;
+	if (CurrentTileMapDirections[1] && CurrentTileMapDirections[2] && CurrentTileMapDirections[3] && !CurrentTileMapDirections[0]) return 180;
+	if (CurrentTileMapDirections[0] && CurrentTileMapDirections[2] && CurrentTileMapDirections[3] && !CurrentTileMapDirections[1]) return 270;
+	
+	//Corner
+	if (CurrentTileMapDirections[0] && CurrentTileMapDirections[1] && !CurrentTileMapDirections[2] && !CurrentTileMapDirections[3]) return 0;
+	if (CurrentTileMapDirections[1] && CurrentTileMapDirections[2] && !CurrentTileMapDirections[0] && !CurrentTileMapDirections[3]) return 90;
+	if (CurrentTileMapDirections[2] && CurrentTileMapDirections[3] && !CurrentTileMapDirections[1] && !CurrentTileMapDirections[0]) return 180;
+	if (CurrentTileMapDirections[3] && CurrentTileMapDirections[0] && !CurrentTileMapDirections[2] && !CurrentTileMapDirections[1]) return 270;
+
+	//Line
+	if (CurrentTileMapDirections[0] && CurrentTileMapDirections[2] && !CurrentTileMapDirections[1] && !CurrentTileMapDirections[3]) return 0;
+	if (CurrentTileMapDirections[1] && CurrentTileMapDirections[3] && !CurrentTileMapDirections[0] && !CurrentTileMapDirections[2]) return 90;
+
+	//Single
+
+	if (CurrentTileMapDirections[0] && !CurrentTileMapDirections[1] && !CurrentTileMapDirections[2] && !CurrentTileMapDirections[3]) return 0;
+	if (CurrentTileMapDirections[1] && !CurrentTileMapDirections[0] && !CurrentTileMapDirections[2] && !CurrentTileMapDirections[3]) return 90;
+	if (CurrentTileMapDirections[2] && !CurrentTileMapDirections[0] && !CurrentTileMapDirections[1] && !CurrentTileMapDirections[3]) return 180;
+	if (CurrentTileMapDirections[3] && !CurrentTileMapDirections[0] && !CurrentTileMapDirections[1] && !CurrentTileMapDirections[2]) return 270;
+
+	return 0;
+}
+
 
 void ALevelGenerator::GenerateNewLinks()
 {

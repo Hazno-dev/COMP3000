@@ -92,7 +92,7 @@ public:
 	void SpawnTileLayout();
 	
 	UFUNCTION()
-	void SpawnTile(UClass* TileClass, const FVector& position);
+	void SpawnTile(UClass* TileClass, const FVector& position, int Rotation);
 
 	UFUNCTION()
 	FVector GetTileWorldspace(FVector2D InVec);
@@ -147,6 +147,9 @@ public:
 
 	bool LinkAssetTile(TTuple<UE::Math::TVector2<double>, FTileInfo> InTile, UClass* InClass);
 
+	TEnumAsByte<EConnectionType> GetConnectionType(TArray<bool> Direction);
+
+	int RotationAmount(FTileInfo InTile);
 	
 protected:
 	// Called when the game starts or when spawned

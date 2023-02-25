@@ -41,7 +41,7 @@ void UPlayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		ShouldMove = (GroundSpeed > 0 && OwningMovement->GetCurrentAcceleration() != FVector::ZeroVector) ? true : false;
 		IsFalling = OwningMovement->IsFalling();
 		Direction = CalculateDirection(Velocity, OwningCharacter->PublicRot);
-		GEngine->AddOnScreenDebugMessage(-1, 0.1f, FColor::Red, FString::SanitizeFloat(Direction));
+		//GEngine->AddOnScreenDebugMessage(-1, 0.1f, FColor::Red, FString::SanitizeFloat(Direction));
 		IsPunching = OwningCharacter->Punching;
 
 		//Switch between montages for upper torso, dependant on action

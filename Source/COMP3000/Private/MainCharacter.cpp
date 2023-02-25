@@ -166,6 +166,9 @@ void AMainCharacter::BeginPlay()
 
 	GenerateHero(HeroDataArray[0]);
 	SetMeshes(HeroDataArray[0]);
+
+	//Cursor Setup
+	WorldCursor = GetWorld()->SpawnActor<AWorldCursor>(WorldCursorBP, FVector(0, 0, 0), FRotator(0, 0, 0));
 }
 
 
@@ -175,9 +178,13 @@ void AMainCharacter::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 	
 	//Rotate player to mouse
-	SavedController->GetHitResultUnderCursorByChannel(TraceChannel, true, HitResult);
-	PublicRot = FRotator(0, (UKismetMathLibrary::FindLookAtRotation(this->GetActorLocation(), HitResult.Location).Yaw), 0);
-	if (GetCharacterMovement()->Velocity.Size() > 0 && GetCharacterMovement()->GetCurrentAcceleration() != FVector::ZeroVector) SetActorRotation(PublicRot);
+	if (SavedController->GetHitResultUnderCursorByChannel(TraceChannel, true, HitResult)) {
+		PublicRot = FRotator(0, (UKismetMathLibrary::FindLookAtRotation(this->GetActorLocation(), HitResult.Location).Yaw), 0);
+		if (GetCharacterMovement()->Velocity.Size() > 0 && GetCharacterMovement()->GetCurrentAcceleration() != FVector::ZeroVector) SetActorRotation(PublicRot);
+		WorldCursor->MoveCursor(HitResult.Location, HitResult.ImpactNormal);
+	}
+
+	HeldKeyManager(DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -192,6 +199,7 @@ void AMainCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	PlayerInputComponent->BindAction("Punch", IE_Pressed, this, &AMainCharacter::Punch);
 	PlayerInputComponent->BindAction("Punch", IE_Released, this, &AMainCharacter::StopPunch);
 	PlayerInputComponent->BindAction("Dash", IE_Pressed, this, &AMainCharacter::StartDash);
+	PlayerInputComponent->BindAction("Dash", IE_Released, this, &AMainCharacter::EndDash);
 
 	PlayerInputComponent->BindAxis("Forward/Backward", this, &AMainCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("Left/Right", this, &AMainCharacter::MoveRight);
@@ -257,27 +265,56 @@ void AMainCharacter::StopPunch()
 void AMainCharacter::StartDash() {
 
 	FTimerHandle DelayHandle;
+	WorldCursor->ToggleVisibility(false);
+	
+	DashVector = (GetCharacterMovement()->Velocity.GetSafeNormal().IsNearlyZero())
+		? GetActorForwardVector() : GetCharacterMovement()->Velocity.GetSafeNormal();
+	
+	//GetMesh()->SetHiddenInGame(true, true);
+	//UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), DashEffect, GetActorLocation(), GetActorRotation());
+	//GetCharacterMovement()->Deactivate();
+	
+	//GetWorld()->GetTimerManager().SetTimer(DelayHandle, this, &AMainCharacter::EndDash, 0.1f, false);
+	//EndDash();
+}
 
-	DashVector = GetActorForwardVector();
+void AMainCharacter::HeldDash(float DeltaTime) {
+
+	if (GetCharacterMovement()->Velocity.GetSafeNormal().IsNearlyZero()) {
+		DashVector = GetActorForwardVector();
+		WorldCursor->ToggleVisibility(true);
+	} else {
+		DashVector = GetCharacterMovement()->Velocity.GetSafeNormal();
+	}
+}
+
+void AMainCharacter::EndDash() {
+	
+	//HeldTime = 0.0f;
+
 	GetMesh()->SetHiddenInGame(true, true);
 	UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), DashEffect, GetActorLocation(), GetActorRotation());
 	GetCharacterMovement()->Deactivate();
 	
-	GetWorld()->GetTimerManager().SetTimer(DelayHandle, this, &AMainCharacter::EndDash, 0.4f, false);
-}
-
-void AMainCharacter::EndDash() {
 	GetMesh()->SetHiddenInGame(false, true);
 	GetMesh()->SetHiddenInGame(true, false);
-
+	
+	WorldCursor->ToggleVisibility(false);
+	
 	GetCharacterMovement()->Activate();
 	FVector DashPosition = GetActorLocation() + DashVector * 1000;
-	SetActorLocation(DashPosition, true);
+	SetActorLocation(DashPosition, true, nullptr, ETeleportType::TeleportPhysics);
 	UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), DashEffect, GetActorLocation(), GetActorRotation());
 
 	
 }
 
+/* Iterate through required held key events, rather than using IE_Repeat (laggy, sucks) */
+void AMainCharacter::HeldKeyManager(float DeltaTime) {
+	if (SavedController->IsInputKeyDown(EKeys::LeftShift)) {
+		HeldDash(DeltaTime);
+	}
+}
 
 void AMainCharacter::GenerateHero(UPARAM(ref) FHeroDataStruct& InHero) {
 	//Gendered Data

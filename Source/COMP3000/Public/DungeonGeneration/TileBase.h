@@ -24,6 +24,19 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tile Data")
 	TEnumAsByte<ETileType> TileType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tile Data")
+	TEnumAsByte<EConnectionType> ConnectionType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tile Data")
+	FName LevelName;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tile Data")
+	ULevelStreaming* LevelInstance;
+
+	/* Is the tile able to rotate along every axis */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tile Data")
+	bool bMultiDirectional;
 	
 protected:
 	// Called when the game starts or when spawned
@@ -32,5 +45,8 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+
+
 
 };

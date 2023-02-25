@@ -3,6 +3,9 @@
 
 #include "DungeonGeneration/TileBase.h"
 
+#include "Engine/LevelStreaming.h"
+#include "Kismet/GameplayStatics.h"
+
 // Sets default values
 ATileBase::ATileBase()
 {
@@ -13,13 +16,16 @@ ATileBase::ATileBase()
 	TileConnections.Add(ECardinalPoints::South, false);
 	TileConnections.Add(ECardinalPoints::West, false);
 	TileConnections.Add(ECardinalPoints::Random, false);
+	bMultiDirectional = true;
 }
 
 // Called when the game starts or when spawned
 void ATileBase::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	//LevelObject = UGameplayStatics::GetStreamingLevel(GetWorld(), LevelName);
+	//LevelInstance = LevelObject->CreateInstance()
 }
 
 // Called every frame

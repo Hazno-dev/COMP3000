@@ -7,6 +7,7 @@
 #include "GameFramework/Character.h"
 #include "Heroes/HeroGeneration.h"
 #include "Perception/AIPerceptionStimuliSourceComponent.h"
+#include "World/WorldCursor.h"
 #include "MainCharacter.generated.h"
 
 
@@ -84,12 +85,18 @@ public:
 	TObjectPtr<UAIPerceptionStimuliSourceComponent> AIStimuliSource;
 
 	//Shooting
-	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara")
 	UProjectileSpawner* ProjectileSpawner;
 
 	UFUNCTION(BlueprintCallable)
 	void ShootProjectile();
+
+	//Cursor
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cursor")
+	TSubclassOf<AWorldCursor> WorldCursorBP;
+
+	UPROPERTY()
+	TObjectPtr<AWorldCursor> WorldCursor;
 
 	//Heroes
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Heroes")
@@ -381,6 +388,8 @@ protected:
 	/* Dash */
 	void StartDash();
 
+	void HeldDash(float DeltaTime);
+
 	void EndDash();
 
 private:
@@ -390,6 +399,9 @@ private:
 	
 	/** Hitpoint for Mouse Aiming */
 	FHitResult HitResult;
+
+	UFUNCTION()
+	void HeldKeyManager(float DeltaTime);
 	
 	UFUNCTION(BlueprintCallable, Category = "Generation Functions")
 	void GenerateHero(UPARAM(ref) FHeroDataStruct& InHero);
@@ -406,5 +418,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
 
+	//Dash Variables
 	FVector DashVector;
+	float HeldTime = 0.0f;
 };

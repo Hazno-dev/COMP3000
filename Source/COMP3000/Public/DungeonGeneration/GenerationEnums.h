@@ -5,6 +5,16 @@
 #include "CoreMinimal.h"
 #include "GenerationEnums.generated.h"
 
+UENUM(BlueprintType)
+enum EConnectionType
+{
+	Corner,
+	Threeway,
+	Fourway,
+	Line,
+	Single,
+	NONE
+};
 
 UENUM(BlueprintType)
 enum ETileType
