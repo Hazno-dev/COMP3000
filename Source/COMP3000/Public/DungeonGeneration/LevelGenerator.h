@@ -77,6 +77,10 @@ public:
 	/** Spawn End Tile Furthest From Start? */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	bool SpawnEndFurthest;
+
+	/* Show Debug Tiles? */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	bool bShowDebugTiles;
 	
 	//Generation Functions
 	UFUNCTION()

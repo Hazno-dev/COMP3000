@@ -24,6 +24,8 @@ ALevelGenerator::ALevelGenerator()
 	SeekingPoints.Add(ECardinalPoints::South, FVector2D(-1, 0));
 	SeekingPoints.Add(ECardinalPoints::West, FVector2D(0, -1));
 
+	bShowDebugTiles = true;
+
 }
 
 // Called when the game starts or when spawned
@@ -96,6 +98,7 @@ void ALevelGenerator::TileLayoutGeneration()
 	TempDirect = StartDirection;
 
 	FTileInfo MakerInfo;
+	
 	//Loop as many times as ValueAmount (amount of tiles to generate)
 	for (int i = 0; i < ValueAmount; i++)
 	{
@@ -175,9 +178,10 @@ void ALevelGenerator::SpawnTile(UClass* TileClass, const FVector& position, int 
 	ATileBase* TempTile = GetWorld()->SpawnActor<ATileBase>(TileClass, position, FRotator(0,Rotation,0), SpawnInfo);
 	TempTile->AttachToActor(this, TransformInfo);
 	TempTile->SetActorRotation(FRotator(0,Rotation,0));
+	TempTile->SetActorHiddenInGame(!bShowDebugTiles);
 
 	//gengine rotation parameter
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::FromInt(Rotation));
+	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::FromInt(Rotation));
 
 	if (TempTile->LevelName != "") {
 		TempTile->LevelInstance = UGameplayStatics::GetStreamingLevel(GetWorld(), TempTile->LevelName)
@@ -411,6 +415,8 @@ UClass* ALevelGenerator::LinkAssetTiles(TTuple<UE::Math::TVector2<double>, FTile
 				CurrentGenericTile->GetDefaultObject<ATileBase>()->TileConnections.GenerateValueArray(CurrentTileListDirections);
 				for (int i = 0; i < 4; i++)
 				{
+					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("CurrentTileListDirections: %i"), CurrentTileListDirections[i]));
+					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("CurrentTileMapDirections: %i"), CurrentTileMapDirections[i]));
 					if (CurrentTileMapDirections[i] != CurrentTileListDirections[i]) break;
 					if (i == 3) ValidTiles.push_back(CurrentGenericTile);
 				}

@@ -3,6 +3,7 @@
 
 #include "PlayerAnimInstance.h"
 
+
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -26,7 +27,11 @@ void UPlayerAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
 	OwningCharacter = Cast<AMainCharacter>(GetOwningActor());
-	if (OwningCharacter != nullptr) OwningMovement = OwningCharacter->GetCharacterMovement();
+	if (OwningCharacter != nullptr) {
+		OwningMovement = OwningCharacter->GetCharacterMovement();
+		OwningCharacter->ArmedToggle.AddDynamic(this, &UPlayerAnimInstance::ArmedToggleMontage);
+		OwningCharacter->FistFire.AddDynamic(this, &UPlayerAnimInstance::FistFireMontage);
+	}
 }
 
 
@@ -56,8 +61,8 @@ void UPlayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 void UPlayerAnimInstance::MontagePlayer()
 {
 	//Punching start/stop
-	if (IsPunching && !this->Montage_IsPlaying(OwningCharacter->Mon_Punching)) this->Montage_Play(OwningCharacter->Mon_Punching, 1);
-	else if (!IsPunching && this->Montage_IsPlaying(OwningCharacter->Mon_Punching)) this->Montage_Stop(0.2, OwningCharacter->Mon_Punching);
+	//if (IsPunching && !this->Montage_IsPlaying(OwningCharacter->Mon_Punching)) this->Montage_Play(OwningCharacter->Mon_Punching, 1);
+	//else if (!IsPunching && this->Montage_IsPlaying(OwningCharacter->Mon_Punching)) this->Montage_Stop(0.2, OwningCharacter->Mon_Punching);
 
 	//Walking start
 	//if (!IsPunching && ShouldMove && !this->Montage_IsPlaying(OwningCharacter->Mon_Walking)) this->Montage_Play(OwningCharacter->Mon_Walking, 1);
@@ -96,6 +101,30 @@ void UPlayerAnimInstance::TurnInPlace()
 		
 	} 
 	
+}
+
+void UPlayerAnimInstance::ArmedToggleMontage() {
+	GEngine->AddOnScreenDebugMessage(-1, 0.1f, FColor::Red, FString::SanitizeFloat(OwningCharacter->Armed));
+	if (OwningCharacter->Armed && !this->Montage_IsPlaying(OwningCharacter->Mon_EnterArmed)) this->Montage_Play(OwningCharacter->Mon_EnterArmed, 1);
+	else if (!OwningCharacter->Armed && !this->Montage_IsPlaying(OwningCharacter->Mon_ExitArmed)) this->Montage_Play(OwningCharacter->Mon_ExitArmed, 1);
+}
+
+void UPlayerAnimInstance::FistFireMontage() {
+	if (!OwningCharacter->Punching) return;
+
+	//gengine firinghand
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, FString::SanitizeFloat(FiringHand));
+
+	if (!FiringHand) {
+		this->Montage_Play(OwningCharacter->Mon_FireFistRight, 1);
+		FiringHand = true;
+		OwningCharacter->SetHandParticlesOnL(true);
+	}
+	else {
+		this->Montage_Play(OwningCharacter->Mon_FireFistLeft, 1);
+		FiringHand = false;
+		OwningCharacter->SetHandParticlesOnR(true);
+	}
 }
 
 

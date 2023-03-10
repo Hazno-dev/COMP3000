@@ -67,7 +67,7 @@
 /DBUILT_FROM_CHANGELIST=23901901
 /DBUILD_VERSION=++UE5+Release-5.1-CL-23901901
 /DBUILD_ICON_FILE_NAME="\"..\\Build\\Windows\\Resources\\Default.ico\""
-/DPROJECT_COPYRIGHT_STRING="Fill out your copyright notice in the Description page of Project Settings."
+/DPROJECT_COPYRIGHT_STRING="Callum Stables, 2023"
 /DPROJECT_PRODUCT_IDENTIFIER=COMP3000
 /fo "C:\Users\callu\Documents\COMP3000 5.1\Plugins\Developer\RiderLink\HostProject\Plugins\RiderLink\Intermediate\Build\Win64\UnrealEditor\Development\RiderLogging\Default.rc2.res"
 "..\Build\Windows\Resources\Default.rc2"

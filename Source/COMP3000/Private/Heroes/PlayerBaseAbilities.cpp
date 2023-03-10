@@ -1,0 +1,91 @@
+// Callum Stables, 2023
+
+
+#include "Heroes/PlayerBaseAbilities.h"
+
+#include "MainCharacter.h"
+#include "Heroes/Abilities/AB_Dash.h"
+
+// Sets default values for this component's properties
+UPlayerBaseAbilities::UPlayerBaseAbilities()
+{
+	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
+	// off to improve performance if you don't need them.
+	PrimaryComponentTick.bCanEverTick = true;
+
+	// ...
+}
+
+
+// Called when the game starts
+void UPlayerBaseAbilities::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (GetOwner() == nullptr) return;
+	
+	MainCharacterRef = Cast<AMainCharacter>(GetOwner());
+
+	DashClass.GetDefaultObject()->CustomBeginPlay(MainCharacterRef, GetWorld());
+	
+}
+
+
+// Called every frame
+void UPlayerBaseAbilities::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	DashClass.GetDefaultObject()->CustomTick(DeltaTime);
+	
+	
+
+	// ...
+}
+
+void UPlayerBaseAbilities::StartDash() {
+	if (MainCharacterRef == nullptr || DashClass == nullptr) return;
+
+	DashClass.GetDefaultObject()->CoreBeginAbility();
+	
+	
+}
+
+void UPlayerBaseAbilities::HeldDash() {
+	
+}
+
+void UPlayerBaseAbilities::EndDash() {
+	if (MainCharacterRef == nullptr) return;
+
+
+}
+
+UTexture2D* UPlayerBaseAbilities::AbilityTextureFromEnum(const EAbilitySlotType AbilitySlotType) const {
+	switch (AbilitySlotType) {
+		case EAbilitySlotType::Dash:
+			if (DashClass == nullptr) return nullptr;
+			if (DashClass.GetDefaultObject()->AbilityIcon == nullptr) return nullptr;
+			return DashClass.GetDefaultObject()->AbilityIcon;
+		case EAbilitySlotType::Ability1:
+			if (Ability1Class == nullptr) return nullptr;
+			if (Ability1Class.GetDefaultObject()->AbilityIcon == nullptr) return nullptr;
+			return Ability1Class.GetDefaultObject()->AbilityIcon;
+		case EAbilitySlotType::Ability2:
+			if (Ability2Class == nullptr) return nullptr;
+			if (Ability2Class.GetDefaultObject()->AbilityIcon == nullptr) return nullptr;
+			return Ability2Class.GetDefaultObject()->AbilityIcon;
+		case EAbilitySlotType::Ability3:
+			if (Ability3Class == nullptr) return nullptr;
+			if (Ability3Class.GetDefaultObject()->AbilityIcon == nullptr) return nullptr;
+			return Ability3Class.GetDefaultObject()->AbilityIcon;
+		case EAbilitySlotType::Ultimate:
+			if (UltimateClass == nullptr) return nullptr;
+			if (UltimateClass.GetDefaultObject()->AbilityIcon == nullptr) return nullptr;
+			return UltimateClass.GetDefaultObject()->AbilityIcon;
+		default:
+			return nullptr;
+	}
+		
+}
+

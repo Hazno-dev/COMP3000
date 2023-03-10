@@ -7,6 +7,7 @@
 #include "Animation/AnimInstance.h"
 #include "PlayerAnimInstance.generated.h"
 
+class AMainCharacter;
 /**
  * 
  */
@@ -73,6 +74,12 @@ public:
 
 	void TurnInPlace();
 
+	UFUNCTION()
+	void ArmedToggleMontage();
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
+	void FistFireMontage();
+
 private:
 
 	//TURN IN PLACE PRIVATE DATA
@@ -90,5 +97,7 @@ private:
 	UPROPERTY() FRotator CurrentRot;
 	/** Players Yaw change/frame  */
 	UPROPERTY() float YawChangeOF;
+
+	bool FiringHand = false;
 	
 };
