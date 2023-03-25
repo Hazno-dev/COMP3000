@@ -27,6 +27,8 @@ void AAbilityBase::CustomBeginPlay(AMainCharacter* MainCharacter, UWorld* World)
 	WorldRef = World;
 	BaseCharacterSpeed = MainCharacterRef->GetCharacterMovement()->MaxWalkSpeed;
 	BaseCharacterAcceleration = MainCharacterRef->GetCharacterMovement()->MaxAcceleration;
+
+	CooldownTimerHandle.Invalidate();
 	
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("DashTry"));
 }
@@ -53,11 +55,12 @@ void AAbilityBase::CoreBeginAbility() {
 		// Call EndAbility function after specified duration has elapsed
 		WorldRef->GetTimerManager().SetTimer(AbilityEndTimerHandle, this, &AAbilityBase::CoreEndAbility, AbilityDuration, false);
 
-		if (aSyncRecharge) {
+		if (aSyncRecharge && !CooldownTimerHandle.IsValid()) {
 			CoreStartCooldown();
 		}
 		
 		BeginAbility();
+		OnAbilityStart.Broadcast();
 	}
 }
 
@@ -67,11 +70,12 @@ void AAbilityBase::CoreEndAbility() {
 	WorldRef->GetTimerManager().ClearTimer(AbilityEndTimerHandle);
 	AbilityEndTimerHandle.Invalidate();
 
-	if (!aSyncRecharge) {
+	if (!aSyncRecharge && !CooldownTimerHandle.IsValid()) {
 		CoreStartCooldown();
 	}
 	
 	EndAbility();
+	OnAbilityEnd.Broadcast();
 }
 
 void AAbilityBase::BeginAbility() {
@@ -83,28 +87,31 @@ void AAbilityBase::PlayingAbility() {
 void AAbilityBase::EndAbility() {
 }
 
-void AAbilityBase::CoreStartCooldown() {	
+void AAbilityBase::CoreStartCooldown() {
+	OnAbilityCooldownStart.Broadcast();
 	FTimerDelegate TimerDelegate;
-	CurrentChargeIndex = (CurrentChargeIndex + 1) % 1000;
 	
-	TimerDelegate.BindUFunction(this, "CoreEndCooldown", CurrentChargeIndex);
-	CooldownTimerHandles.Add(CurrentChargeIndex, FTimerHandle());
-	WorldRef->GetTimerManager().SetTimer(*CooldownTimerHandles.Find(CurrentChargeIndex), TimerDelegate, AbilityRechargeDuration, false);
+	TimerDelegate.BindUFunction(this, "CoreEndCooldown");
+	WorldRef->GetTimerManager().SetTimer(CooldownTimerHandle, TimerDelegate, AbilityRechargeDuration, false);
 
 	StartCooldown();
 }
 
-void AAbilityBase::CoreEndCooldown(int ChargeIndex) {
+void AAbilityBase::CoreEndCooldown() {
 
 	//Wipe memory of the timer handle
-	WorldRef->GetTimerManager().ClearTimer(*CooldownTimerHandles.Find(ChargeIndex));
-	CooldownTimerHandles.Find(ChargeIndex)->Invalidate();
-	CooldownTimerHandles.Remove(ChargeIndex);
+	WorldRef->GetTimerManager().ClearTimer(CooldownTimerHandle);
+	CooldownTimerHandle.Invalidate();
 	
 	//Increment Charges
 	if (CurrentCharges < MaxCharges) {
 		CurrentCharges++;
+		OnAbilityCooldownEnd.Broadcast();
+		if (CurrentCharges < MaxCharges) {
+			CoreStartCooldown();
+		}
 	}
+	
 	EndCooldown();
 }
 

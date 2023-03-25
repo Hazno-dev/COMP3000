@@ -20,7 +20,7 @@ public:
 	UPlayerBaseAbilities();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
-	TSubclassOf<AAB_Dash> DashClass;
+	TSubclassOf<AAbilityBase> DashClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability 1")
 	TSubclassOf<AAbilityBase> Ability1Class;
@@ -52,7 +52,19 @@ public:
 	void EndDash();
 
 	UFUNCTION()
-	UTexture2D* AbilityTextureFromEnum(const EAbilitySlotType AbilitySlotType) const;
+	void StartAbility1();
+
+	UFUNCTION()
+	void StartAbility2();
+
+	UFUNCTION()
+	void StartAbility3();
+
+	UFUNCTION()
+	void StartUltimate();
+
+	UFUNCTION()
+	AAbilityBase* AbilityFromEnum(const EAbilitySlotType AbilitySlotType) const;
 
 private:
 

@@ -111,6 +111,7 @@ void UPlayerAnimInstance::ArmedToggleMontage() {
 
 void UPlayerAnimInstance::FistFireMontage() {
 	if (!OwningCharacter->Punching) return;
+	OwningCharacter->CanFire = false;
 
 	//gengine firinghand
 	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, FString::SanitizeFloat(FiringHand));

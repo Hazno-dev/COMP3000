@@ -61,31 +61,37 @@ void UPlayerBaseAbilities::EndDash() {
 
 }
 
-UTexture2D* UPlayerBaseAbilities::AbilityTextureFromEnum(const EAbilitySlotType AbilitySlotType) const {
+void UPlayerBaseAbilities::StartAbility1() {
+}
+
+void UPlayerBaseAbilities::StartAbility2() {
+}
+
+void UPlayerBaseAbilities::StartAbility3() {
+}
+
+void UPlayerBaseAbilities::StartUltimate() {
+}
+
+AAbilityBase* UPlayerBaseAbilities::AbilityFromEnum(const EAbilitySlotType AbilitySlotType) const {
 	switch (AbilitySlotType) {
 		case EAbilitySlotType::Dash:
 			if (DashClass == nullptr) return nullptr;
-			if (DashClass.GetDefaultObject()->AbilityIcon == nullptr) return nullptr;
-			return DashClass.GetDefaultObject()->AbilityIcon;
+			return DashClass.GetDefaultObject();
 		case EAbilitySlotType::Ability1:
 			if (Ability1Class == nullptr) return nullptr;
-			if (Ability1Class.GetDefaultObject()->AbilityIcon == nullptr) return nullptr;
-			return Ability1Class.GetDefaultObject()->AbilityIcon;
+			return Cast<AAbilityBase>(Ability1Class);
 		case EAbilitySlotType::Ability2:
 			if (Ability2Class == nullptr) return nullptr;
-			if (Ability2Class.GetDefaultObject()->AbilityIcon == nullptr) return nullptr;
-			return Ability2Class.GetDefaultObject()->AbilityIcon;
+			return Cast<AAbilityBase>(Ability2Class);
 		case EAbilitySlotType::Ability3:
 			if (Ability3Class == nullptr) return nullptr;
-			if (Ability3Class.GetDefaultObject()->AbilityIcon == nullptr) return nullptr;
-			return Ability3Class.GetDefaultObject()->AbilityIcon;
+			return Cast<AAbilityBase>(Ability3Class);
 		case EAbilitySlotType::Ultimate:
 			if (UltimateClass == nullptr) return nullptr;
-			if (UltimateClass.GetDefaultObject()->AbilityIcon == nullptr) return nullptr;
-			return UltimateClass.GetDefaultObject()->AbilityIcon;
+			return Cast<AAbilityBase>(UltimateClass);
 		default:
 			return nullptr;
 	}
-		
 }
 

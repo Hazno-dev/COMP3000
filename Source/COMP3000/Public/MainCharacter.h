@@ -8,7 +8,10 @@
 #include "Heroes/HeroGeneration.h"
 //#include "Heroes/HeroGenerator.h"
 #include "Perception/AIPerceptionStimuliSourceComponent.h"
+#include "EnhancedInputSubsystems.h"
 #include "Components/PointLightComponent.h"
+#include "InputAction.h"
+#include "InputMappingContext.h"
 #include "World/WorldCursor.h"
 
 
@@ -28,18 +31,14 @@ class COMP3000_API AMainCharacter : public ACharacter
 	
 public:
 	//UNREAL DEFAULTS
-	// Sets default values for this character's properties
 	AMainCharacter();
 	
 	// Class Overrides
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	virtual void OnConstruction(const FTransform& Transform) override;
-
-	/*
-	 * Ability System
-	 */
-
+	virtual void PawnClientRestart() override;
+	
 	/*
 	 * Component Definitions
 	 */
@@ -66,7 +65,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hero Generation")
 	UHeroGenerator* HeroGeneratorComponent;
 
-	//DEPRECATED? - Old ability system
+	/** AISource */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UAIPerceptionStimuliSourceComponent> AIStimuliSource;
+
+	/** Projectile Spawner */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara")
+	UProjectileSpawner* ProjectileSpawner;
+
+	UFUNCTION(BlueprintCallable)
+	void ShootProjectile();
+	
+	/*
+	 * Ability System
+	 */
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Abilities")
 	UPlayerBaseAbilities* PlayerBaseAbilitiesComponent;
 
@@ -82,15 +95,65 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetHandParticlesOnR(bool On);
+
+	/**
+	 * Inputs
+	 */
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Actions")
+	UInputAction* MovementAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Actions")
+	UInputAction* JumpAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Actions")
+	UInputAction* FireAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Actions")
+	UInputAction* ArmedAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Actions")
+	UInputAction* DashAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Actions")
+	UInputAction* Ability1Action;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Actions")
+	UInputAction* Ability2Action;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Actions")
+	UInputAction* Ability3Action;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Actions")
+	UInputAction* UltimateAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Mappings")
+	UInputMappingContext* BaseInputMappingContext;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Mappings")
+	int32 BaseMappingPriority = 0;
+
+	UEnhancedInputLocalPlayerSubsystem* Subsystem;
 	
-	/** Player Controller reference */
+	/**
+	 * World Cursor
+	 */
+
+	//Cursor
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cursor")
+	TSubclassOf<AWorldCursor> WorldCursorBP;
+
 	UPROPERTY()
-	APlayerController* SavedController;
+	TObjectPtr<AWorldCursor> WorldCursor;
 	
-	//PUBLIC PLAYER VARIABLES
+	/*
+	 * Player Data Variables
+	 */
+	
 	/** Character holding punch */
 	UPROPERTY(BlueprintReadOnly, Category = "PlayerController")
 	bool Punching = false;
+	UPROPERTY(BlueprintReadWrite, Category = "PlayerController")
+	bool CanFire = true;
 
 	/** Character Armed */
 	UPROPERTY(BlueprintReadOnly, Category = "PlayerController")
@@ -104,8 +167,26 @@ public:
 	/** Players Health */
 	UPROPERTY(EditAnywhere, Category = "PlayerStats")
 	int PlayerHealth;
+
+	//Heroes
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Heroes")
+	TArray<FHeroDataStruct> HeroDataArray;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara")
+	UNiagaraSystem* DashEffect;
+
+	/*
+	 * References
+	 */
 	
-	//PLAYER MONTAGES
+	/** Player Controller reference */
+	UPROPERTY()
+	APlayerController* SavedController;
+
+	/*
+	 * Asset References 
+	 */
+	
 	/** Punching Montage  */
 	UPROPERTY(EditAnywhere, Category = "Animations")
 	UAnimMontage* Mon_Punching;
@@ -133,31 +214,6 @@ public:
 	
 	FFistFire FistFire;
 	
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UAIPerceptionStimuliSourceComponent> AIStimuliSource;
-
-	//Shooting
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara")
-	UProjectileSpawner* ProjectileSpawner;
-
-	UFUNCTION(BlueprintCallable)
-	void ShootProjectile();
-
-	//Cursor
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cursor")
-	TSubclassOf<AWorldCursor> WorldCursorBP;
-
-	UPROPERTY()
-	TObjectPtr<AWorldCursor> WorldCursor;
-
-	//Heroes
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Heroes")
-	TArray<FHeroDataStruct> HeroDataArray;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara")
-	UNiagaraSystem* DashEffect;
-	
 	
 protected:
 
@@ -169,6 +225,8 @@ protected:
 
 	/** Left/Right motion */
 	void MoveRight(float Value);
+
+	void EnhancedMove(const FInputActionValue& Value);
 
 	/** Start punching */
 	void Punch();

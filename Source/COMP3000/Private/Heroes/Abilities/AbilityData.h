@@ -1,6 +1,8 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/StructOnScope.h"
+#include "AbilityData.generated.h"
 
 UENUM(BlueprintType)
 enum EAbilitySlotType
@@ -10,4 +12,40 @@ enum EAbilitySlotType
 	Ability2,
 	Ability3,
 	Ultimate
+};
+
+UENUM(BlueprintType)
+enum EStatusEffect
+{
+	Slowness,
+	Nimble,
+	Stun,
+	Root,
+	Frozen,
+	Burning,
+	Invincible,
+	Berserk
+};
+
+USTRUCT(BlueprintType)
+struct FStatusEffectData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite)
+	TEnumAsByte<EStatusEffect> StatusEffect;
+	
+	UPROPERTY(BlueprintReadWrite)
+	float Duration;
+
+	//Strength is defined by 0 - 1, 0 being no effect, 1 being 100% effect etc. Some effects cap at 1, some don't.
+	UPROPERTY(BlueprintReadWrite)
+	float Strength;
+
+	FStatusEffectData()
+	{
+		StatusEffect = EStatusEffect::Slowness;
+		Duration = 0.0f;
+		Strength = 0.0f;
+	}
 };

@@ -4,6 +4,8 @@
 
 #include "TimerManager.h"
 #include "Camera/CameraComponent.h"
+#include "COMP3000/COMP3000GameModeBase.h"
+#include "COMP3000/COMP3000GameModeBase.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -15,6 +17,7 @@
 #include "Heroes/PlayerBaseAbilities.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "EnhancedInputComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 // Sets default values
@@ -96,6 +99,8 @@ void AMainCharacter::BeginPlay()
 	
 	WorldCursor = GetWorld()->SpawnActor<AWorldCursor>(WorldCursorBP, FVector(0, 0, 0), FRotator(0, 0, 0));
 
+	Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(SavedController->GetLocalPlayer());
+	
 	ArmedToggle.Broadcast();
 }
 
@@ -120,23 +125,58 @@ void AMainCharacter::Tick(float DeltaTime)
 void AMainCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
-	
+
+	if (!IsValid(PlayerBaseAbilitiesComponent)) return;
 	// Set up gameplay key bindings
 	check(PlayerInputComponent);
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
-	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
-	PlayerInputComponent->BindAction("Punch", IE_Pressed, this, &AMainCharacter::Punch);
-	PlayerInputComponent->BindAction("Punch", IE_Released, this, &AMainCharacter::StopPunch);
-	PlayerInputComponent->BindAction("Dash", IE_Pressed, this, &AMainCharacter::StartDash);
-	PlayerInputComponent->BindAction("Dash", IE_Released, this, &AMainCharacter::EndDash);
-	PlayerInputComponent->BindAction("Armed", IE_Pressed, this, &AMainCharacter::ToggleWeaponArm);
 
-	PlayerInputComponent->BindAxis("Forward/Backward", this, &AMainCharacter::MoveForward);
-	PlayerInputComponent->BindAxis("Left/Right", this, &AMainCharacter::MoveRight);
+	if (UEnhancedInputComponent* PlayerEnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
+		if (MovementAction) {
+			PlayerEnhancedInputComponent->BindAction(MovementAction, ETriggerEvent::Triggered, this, &AMainCharacter::EnhancedMove);
+		}
+		if (JumpAction) {
+			PlayerEnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+			PlayerEnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+		}
+		if (FireAction) {
+			PlayerEnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &AMainCharacter::Punch);
+			PlayerEnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &AMainCharacter::StopPunch);
+		}
+		if (ArmedAction) {
+			PlayerEnhancedInputComponent->BindAction(ArmedAction, ETriggerEvent::Started, this, &AMainCharacter::ToggleWeaponArm);
+		}
+		if (DashAction) {
+			PlayerEnhancedInputComponent->BindAction(DashAction, ETriggerEvent::Started, PlayerBaseAbilitiesComponent, &UPlayerBaseAbilities::StartDash);
+		}
+		if (Ability1Action) {
+			PlayerEnhancedInputComponent->BindAction(Ability1Action, ETriggerEvent::Started, PlayerBaseAbilitiesComponent, &UPlayerBaseAbilities::StartAbility1);
+		}
+		if (Ability2Action) {
+			PlayerEnhancedInputComponent->BindAction(Ability2Action, ETriggerEvent::Started, PlayerBaseAbilitiesComponent, &UPlayerBaseAbilities::StartAbility2);
+		}
+		if (Ability3Action) {
+			PlayerEnhancedInputComponent->BindAction(Ability3Action, ETriggerEvent::Started, PlayerBaseAbilitiesComponent, &UPlayerBaseAbilities::StartAbility3);
+		}
+		if (UltimateAction)	{
+			PlayerEnhancedInputComponent->BindAction(UltimateAction, ETriggerEvent::Started, PlayerBaseAbilitiesComponent, &UPlayerBaseAbilities::StartUltimate);
+		}
+	}
 }
 
 void AMainCharacter::OnConstruction(const FTransform& Transform) {
 	Super::OnConstruction(Transform);
+}
+
+void AMainCharacter::PawnClientRestart() {
+	Super::PawnClientRestart();
+
+	if (APlayerController* PC = Cast<APlayerController>(GetController())) {
+		Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer());
+		if (IsValid(Subsystem)) {
+			Subsystem->ClearAllMappings();
+			Subsystem->AddMappingContext(BaseInputMappingContext, BaseMappingPriority);
+		}
+	}
 }
 
 void AMainCharacter::SetHandParticlesOnL(bool On) {
@@ -184,14 +224,27 @@ void AMainCharacter::MoveRight(float Value)
 	}
 }
 
+void AMainCharacter::EnhancedMove(const FInputActionValue& Value) {
+	if (!IsValid(Controller) || Value.GetMagnitude() == 0.f) return;
+
+	const FRotator Rotation = Controller->GetControlRotation();
+	const FRotator YawRotation(0, Rotation.Yaw, 0);
+	
+	AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X), Value[1]);
+	AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y), Value[0]);
+}
+
 void AMainCharacter::Punch()
 {
-	if (!Punching) Punching = true;
-	Armed = true;
-	FistFire.Broadcast();
-	SetHandParticlesOnL(true);
-	SetHandParticlesOnR(true);
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Punch"));
+	Punching = true;
+	if (CanFire) {
+		CanFire = false;
+		Armed = true;
+		FistFire.Broadcast();
+		SetHandParticlesOnL(true);
+		SetHandParticlesOnR(true);
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Punch"));
+	}
 }
 
 void AMainCharacter::StopPunch()
@@ -259,7 +312,7 @@ void AMainCharacter::EndDash() {
 void AMainCharacter::ToggleWeaponArm() {
 	Armed = !Armed;
 	ArmedToggle.Broadcast();
-	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Armed: %d"), Armed));
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Armed: %d"), Armed));
 }
 
 /* Iterate through required held key events, rather than using IE_Repeat (laggy, sucks) */

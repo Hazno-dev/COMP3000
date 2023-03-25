@@ -11,6 +11,10 @@
  */
 class AMainCharacter;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAbilityCooldownStart);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAbilityCooldownEnd);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAbiltiyStart);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAbilityEnd);
 UCLASS()
 class COMP3000_API AAbilityBase : public AActor
 {
@@ -44,8 +48,8 @@ public:
 	void CoreStartCooldown();
 
 	UFUNCTION(BlueprintCallable, Category = "ACore Functions")
-	void CoreEndCooldown(int ChargeIndex);
-
+	void CoreEndCooldown();
+	
 	UFUNCTION(BlueprintCallable, Category = "ACore Functions")
 	virtual void StartCooldown();
 
@@ -79,12 +83,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Icon")
 	UTexture2D* AbilityIcon;
 
+
+	FAbilityCooldownStart OnAbilityCooldownStart;
+	FAbilityCooldownEnd OnAbilityCooldownEnd;
+	FAbiltiyStart OnAbilityStart;
+	FAbilityEnd OnAbilityEnd;
+	
 protected:
 	UPROPERTY()
 	AMainCharacter* MainCharacterRef;
 
 	FTimerHandle AbilityEndTimerHandle;
-	TMap<int32, FTimerHandle> CooldownTimerHandles;
+	FTimerHandle CooldownTimerHandle;
 
 	int32 CurrentChargeIndex = 0;
 

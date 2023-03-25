@@ -58,7 +58,7 @@ public:
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-	AAIGroupManager* GetGroupManager() const {return GroupManager;};
+	AAIGroupManager* GetGroupManager() const {if(!IsValid(GroupManager)) return nullptr; return GroupManager;};
 
 	UFUNCTION(BlueprintCallable)
 	void SummonProjectile();

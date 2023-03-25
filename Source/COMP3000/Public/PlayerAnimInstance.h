@@ -76,7 +76,7 @@ public:
 
 	UFUNCTION()
 	void ArmedToggleMontage();
-
+	
 	UFUNCTION(BlueprintCallable, Category = "Animation")
 	void FistFireMontage();
 
