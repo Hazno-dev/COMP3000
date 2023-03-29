@@ -45,6 +45,9 @@
 SourceArt/**/*.png
 SourceArt/**/*.tga
 
+# Direct Assets
+*.psd
+
 # Binary Files
 Binaries/*
 Plugins/*/Binaries/*
@@ -75,3 +78,5 @@ DerivedDataCache/*
 
 
 Plugins/Developer/RiderLink/*
+
+
