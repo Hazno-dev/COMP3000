@@ -15,6 +15,16 @@ enum EAbilitySlotType
 };
 
 UENUM(BlueprintType)
+enum EAbilityType
+{
+	Damage,
+	Heal,
+	Shield,
+	Ritual,
+	Mitigation
+};
+
+UENUM(BlueprintType)
 enum EStatusEffect
 {
 	Slowness,
@@ -24,7 +34,8 @@ enum EStatusEffect
 	Frozen,
 	Burning,
 	Invincible,
-	Berserk
+	Berserk,
+	Silence
 };
 
 USTRUCT(BlueprintType)
@@ -38,7 +49,8 @@ struct FStatusEffectData
 	UPROPERTY(BlueprintReadWrite)
 	float Duration;
 
-	//Strength is defined by 0 - 1, 0 being no effect, 1 being 100% effect etc. Some effects cap at 1, some don't.
+	//Strength is defined by 0 - 1, 0 being no effect, 1 being 100% effect etc.
+	//Some effects are not affected by strength, such as stun, root, invincible, silence.
 	UPROPERTY(BlueprintReadWrite)
 	float Strength;
 

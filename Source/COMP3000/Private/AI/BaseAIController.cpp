@@ -19,6 +19,11 @@ ABaseAIController::ABaseAIController() {
 	
 }
 
+void ABaseAIController::ReevaluateCurrentBTTask() {
+	//AIBehaviourTreeComponent->RequestBranchEvaluation(EBTNodeResult::Succeeded);
+	AIBehaviourTreeComponent->RestartTree();
+}
+
 void ABaseAIController::BeginPlay() {
 	Super::BeginPlay();
 

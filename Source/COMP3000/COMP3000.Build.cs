@@ -16,14 +16,14 @@ public class COMP3000 : ModuleRules
 			"GameplayTasks", 
 			"Niagara", 
 			"UMG", 
-			"EnhancedInput"
-			
+			"EnhancedInput", 
+			"GameplayStateTreeModule"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "AIModule", "NavigationSystem"});
+		PrivateDependencyModuleNames.AddRange(new string[] { "AIModule", "NavigationSystem", "StateTreeModule"});
 		
 		//GAS
-		PrivateDependencyModuleNames.AddRange(new string[] { "GameplayAbilities", "GameplayTags", "GameplayTasks" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "GameplayAbilities", "GameplayTags", "GameplayTasks"});
 
 		// Uncomment if you are using Slate UI
 		PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });

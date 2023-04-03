@@ -23,8 +23,11 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SpawnProjectile(FVector Location, FRotator Rotation);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float ProjectileSpeed = 1000.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	float Damage = 10.f;
 	
 protected:
 	// Called when the game starts

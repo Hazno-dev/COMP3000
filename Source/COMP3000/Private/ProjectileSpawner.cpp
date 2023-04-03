@@ -18,6 +18,8 @@ void UProjectileSpawner::SpawnProjectile(FVector Location, FRotator Rotation) {
 	
 	AProjectileBase* SpawnedProjectile = GetWorld()->SpawnActor<AProjectileBase>(ProjectileClass, Location, Rotation, FActorSpawnParameters());
 	SpawnedProjectile->ProjectileMovement->Velocity *= ProjectileSpeed;
+	SpawnedProjectile->Damage = Damage;
+	SpawnedProjectile->SetOwner(this->GetOwner());
 }
 
 // Called when the game starts

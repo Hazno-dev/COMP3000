@@ -25,6 +25,7 @@ EBTNodeResult::Type UBTTask_FindRandomPos::ExecuteTask(UBehaviorTreeComponent& O
 	const APawn* AIPawn = AIController->GetPawn();
 
 	if (Cast<ABaseAICharacter>(AIPawn) == nullptr) return EBTNodeResult::Failed;
+	if (Cast<ABaseAICharacter>(AIPawn)->GetGroupManager() == nullptr) return EBTNodeResult::Failed;
 	
 	const AAIGroupManager* PawnGroupManager = Cast<ABaseAICharacter>(AIPawn)->GetGroupManager();
 	const FVector Origin = AIPawn->GetActorLocation();

@@ -8,7 +8,7 @@
 #include "Kismet/GameplayStatics.h"
 
 AAbilityBase::AAbilityBase() {
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 
 	// Set default values
 	bIsAbilityPlaying = false;
@@ -46,6 +46,8 @@ void AAbilityBase::CoreBeginAbility() {
 	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("DashTry"));
 	//current charges gengine
 	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::FromInt(CurrentCharges));
+
+	if (!IsValid(MainCharacterRef)) return;
 	
 	if (!bIsAbilityPlaying && CurrentCharges > 0) {
 		

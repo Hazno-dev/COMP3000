@@ -36,4 +36,7 @@ public:
 
 private:
 	AMainCharacter* MainCharacterRef;
+
+	UFUNCTION()
+	void OnStatusEffectExpired();
 };

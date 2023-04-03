@@ -3,6 +3,7 @@
 
 #include "AI/ProjectileBase.h"
 
+#include "AI/BaseAICharacter.h"
 #include "Kismet/KismetMathLibrary.h"
 
 // Sets default values
@@ -25,6 +26,7 @@ AProjectileBase::AProjectileBase()
 void AProjectileBase::BeginPlay()
 {
 	Super::BeginPlay();
+	
 	//spawn system at location
 	if (MuzzleVFX != nullptr) UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), MuzzleVFX, GetActorLocation(), GetActorRotation());
 	CollisionSphere->OnComponentHit.AddDynamic(this, &AProjectileBase::OnHit);
@@ -42,6 +44,12 @@ void AProjectileBase::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActo
 
  	FRotator Rotation = UKismetMathLibrary::MakeRotFromX(Hit.ImpactNormal);
 	UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), HitVFX, Hit.Location, Rotation);
+
+	if (ABaseAICharacter* AI = Cast<ABaseAICharacter>(OtherActor)) {
+		AI->ReceivedDamage(Damage, this->GetOwner());
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Hit AI")));
+	}
+	
 	this->Destroy();
 }
 

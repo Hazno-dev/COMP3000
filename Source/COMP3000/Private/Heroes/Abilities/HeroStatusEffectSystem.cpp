@@ -33,6 +33,22 @@ void UHeroStatusEffectSystem::TickComponent(float DeltaTime, ELevelTick TickType
 }
 
 void UHeroStatusEffectSystem::AddStatusEffect(FStatusEffectData StatusEffectData) {
+	CurrentStatusEffects.Add(StatusEffectData);
+	// Start a timer for the status effect
+	FTimerHandle TimerHandle;
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &UHeroStatusEffectSystem::OnStatusEffectExpired, StatusEffectData.Duration, false);
+}
+
+void UHeroStatusEffectSystem::OnStatusEffectExpired() {
+	int32 ExpiredEffectIndex = CurrentStatusEffects.IndexOfByPredicate([](const FStatusEffectData& EffectData) {
+	return EffectData.Duration <= 0;
+});
+
+	// If an expired effect is found, remove it
+	if (ExpiredEffectIndex != INDEX_NONE)
+	{
+		CurrentStatusEffects.RemoveAt(ExpiredEffectIndex);
+	}
 }
 
 

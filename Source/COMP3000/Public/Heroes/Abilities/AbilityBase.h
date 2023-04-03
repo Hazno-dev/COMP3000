@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
+#include "Heroes/Abilities/AbilityData.h"
 #include "AbilityBase.generated.h"
 
 /**
@@ -61,6 +62,9 @@ public:
 	bool bIsAbilityPlaying;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
+	TEnumAsByte<EAbilityType> AbilityType;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
 	bool aSyncRecharge;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
@@ -82,7 +86,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Icon")
 	UTexture2D* AbilityIcon;
-
+	
 
 	FAbilityCooldownStart OnAbilityCooldownStart;
 	FAbilityCooldownEnd OnAbilityCooldownEnd;

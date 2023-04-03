@@ -19,6 +19,12 @@ class COMP3000_API ABaseAIController : public AAIController
 public:
 	ABaseAIController();
 
+	UFUNCTION()
+	void ReevaluateCurrentBTTask();
+
+	UFUNCTION()
+	UBehaviorTreeComponent* GetAIBehaviourTreeComponent() const { if(IsValid(AIBehaviourTreeComponent)) return AIBehaviourTreeComponent; return nullptr; }
+	
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnPossess(APawn* InPawn) override;
@@ -38,6 +44,8 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UAIPerceptionComponent> AIPerceptionComponent;
+
+	
 
 	
 };
