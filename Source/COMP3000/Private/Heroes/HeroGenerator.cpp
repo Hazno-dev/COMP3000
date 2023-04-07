@@ -460,34 +460,34 @@ void UHeroGenerator::SetMeshes(FHeroDataStruct InHero) {
 	AExtra->SetSkeletalMesh(AExtraArray
 		[UKismetMathLibrary::Clamp(InHero.AExtraInt, 0, AExtraArray.Num() - 1)]);
 
-	GTorso->SetMasterPoseComponent(GetMesh());
-	GHead->SetMasterPoseComponent(GetMesh());
-	GEyebrows->SetMasterPoseComponent(GetMesh());
-	GFacialHair->SetMasterPoseComponent(GetMesh());
-	GArmUpperL->SetMasterPoseComponent(GetMesh());
-	GArmUpperR->SetMasterPoseComponent(GetMesh());
-	GArmLowerL->SetMasterPoseComponent(GetMesh());
-	GArmLowerR->SetMasterPoseComponent(GetMesh());
-	GHandL->SetMasterPoseComponent(GetMesh());
-	GHandR->SetMasterPoseComponent(GetMesh());
-	GHips->SetMasterPoseComponent(GetMesh());
-	GLegL->SetMasterPoseComponent(GetMesh());
-	GLegR->SetMasterPoseComponent(GetMesh());
-	AHeadCoveringNoHair->SetMasterPoseComponent(GetMesh());
-	AHair->SetMasterPoseComponent(GetMesh());
-	AHeadAttachmentHair->SetMasterPoseComponent(GetMesh());
-	AHeadAttachmentHelmet->SetMasterPoseComponent(GetMesh());
-	AChestAttachment->SetMasterPoseComponent(GetMesh());
-	AHeadCoveringBaseHair->SetMasterPoseComponent(GetMesh());
-	AHeadCoveringNoFacialHair->SetMasterPoseComponent(GetMesh());
-	AShoulderAttachmentL->SetMasterPoseComponent(GetMesh());
-	AShoulderAttachmentR->SetMasterPoseComponent(GetMesh());
-	AElbowAttachmentL->SetMasterPoseComponent(GetMesh());
-	AElbowAttachmentR->SetMasterPoseComponent(GetMesh());
-	AHipAttachment->SetMasterPoseComponent(GetMesh());
-	AKneeAttachmentL->SetMasterPoseComponent(GetMesh());
-	AKneeAttachmentR->SetMasterPoseComponent(GetMesh());
-	AExtra->SetMasterPoseComponent(GetMesh());
+	GTorso->SetLeaderPoseComponent(GetMesh());
+	GHead->SetLeaderPoseComponent(GetMesh());
+	GEyebrows->SetLeaderPoseComponent(GetMesh());
+	GFacialHair->SetLeaderPoseComponent(GetMesh());
+	GArmUpperL->SetLeaderPoseComponent(GetMesh());
+	GArmUpperR->SetLeaderPoseComponent(GetMesh());
+	GArmLowerL->SetLeaderPoseComponent(GetMesh());
+	GArmLowerR->SetLeaderPoseComponent(GetMesh());
+	GHandL->SetLeaderPoseComponent(GetMesh());
+	GHandR->SetLeaderPoseComponent(GetMesh());
+	GHips->SetLeaderPoseComponent(GetMesh());
+	GLegL->SetLeaderPoseComponent(GetMesh());
+	GLegR->SetLeaderPoseComponent(GetMesh());
+	AHeadCoveringNoHair->SetLeaderPoseComponent(GetMesh());
+	AHair->SetLeaderPoseComponent(GetMesh());
+	AHeadAttachmentHair->SetLeaderPoseComponent(GetMesh());
+	AHeadAttachmentHelmet->SetLeaderPoseComponent(GetMesh());
+	AChestAttachment->SetLeaderPoseComponent(GetMesh());
+	AHeadCoveringBaseHair->SetLeaderPoseComponent(GetMesh());
+	AHeadCoveringNoFacialHair->SetLeaderPoseComponent(GetMesh());
+	AShoulderAttachmentL->SetLeaderPoseComponent(GetMesh());
+	AShoulderAttachmentR->SetLeaderPoseComponent(GetMesh());
+	AElbowAttachmentL->SetLeaderPoseComponent(GetMesh());
+	AElbowAttachmentR->SetLeaderPoseComponent(GetMesh());
+	AHipAttachment->SetLeaderPoseComponent(GetMesh());
+	AKneeAttachmentL->SetLeaderPoseComponent(GetMesh());
+	AKneeAttachmentR->SetLeaderPoseComponent(GetMesh());
+	AExtra->SetLeaderPoseComponent(GetMesh());
 }
 
 

@@ -21,7 +21,8 @@ enum EAbilityType
 	Heal,
 	Shield,
 	Ritual,
-	Mitigation
+	Mitigation,
+	DeathCry
 };
 
 UENUM(BlueprintType)
@@ -35,7 +36,8 @@ enum EStatusEffect
 	Burning,
 	Invincible,
 	Berserk,
-	Silence
+	Silence,
+	VisualOnly
 };
 
 USTRUCT(BlueprintType)
@@ -49,6 +51,9 @@ struct FStatusEffectData
 	UPROPERTY(BlueprintReadWrite)
 	float Duration;
 
+	UPROPERTY(BlueprintReadWrite)
+	bool bIsPermanent;
+
 	//Strength is defined by 0 - 1, 0 being no effect, 1 being 100% effect etc.
 	//Some effects are not affected by strength, such as stun, root, invincible, silence.
 	UPROPERTY(BlueprintReadWrite)
@@ -59,5 +64,14 @@ struct FStatusEffectData
 		StatusEffect = EStatusEffect::Slowness;
 		Duration = 0.0f;
 		Strength = 0.0f;
+		bIsPermanent = false;
+	}
+
+	void Initialize(EStatusEffect NewStatusEffect, float NewDuration, float NewStrength, bool NewIsPermanent)
+	{
+		StatusEffect = NewStatusEffect;
+		Duration = NewDuration;
+		Strength = NewStrength;
+		bIsPermanent = NewIsPermanent;
 	}
 };

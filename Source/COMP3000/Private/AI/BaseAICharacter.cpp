@@ -12,6 +12,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Perception/AIPerceptionComponent.h"
+#include "UI/AI/UWB_EnemyStatusBar.h"
 
 // Sets default values
 ABaseAICharacter::ABaseAICharacter()
@@ -24,9 +25,20 @@ ABaseAICharacter::ABaseAICharacter()
 	
 	EnemyBaseAbilitiesComponent = CreateDefaultSubobject<UEnemyBaseAbilities>(TEXT("EnemyBaseAbilitiesComponent"));
 
+	EnemyStatusEffectSystemComponent = CreateDefaultSubobject<UEnemyStatusEffectSystem>(TEXT("EnemyStatusEffectSystemComponent"));
+
+	StatusBar = CreateDefaultSubobject<UWidgetComponent>(TEXT("StatusBar"));
+	StatusBar->SetupAttachment(RootComponent);
+	
 	AIControllerClass = ABaseAIController::StaticClass();
 	
 	Health = 100.f;
+}
+
+void ABaseAICharacter::PostInitializeComponents() {
+	Super::PostInitializeComponents();
+	
+	MaxHealth = Health;
 }
 
 // Called when the game starts or when spawned
@@ -35,6 +47,9 @@ void ABaseAICharacter::BeginPlay()
 	Super::BeginPlay();
 
 	ControllerRef = Cast<ABaseAIController>(GetController());
+
+	UUWB_EnemyStatusBar* StatBarRef = Cast<UUWB_EnemyStatusBar>(StatusBar->GetUserWidgetObject());
+	if (IsValid(StatBarRef)) StatBarRef->SetupComponents(this, FMath::Clamp(MaxHealth / 20.f, 3.f, 8.f));
 }
 
 // Called every frame
@@ -42,6 +57,7 @@ void ABaseAICharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	
 }
 
 // Called to bind functionality to input
@@ -98,13 +114,23 @@ bool ABaseAICharacter::TryMitigateDamage() {
 	return false;
 }
 
+bool ABaseAICharacter::TryDeathCry() {
+	if (EnemyBaseAbilitiesComponent->AbilityFromType(EAbilityType::DeathCry) != nullptr) {
+		ControllerRef->ReevaluateCurrentBTTask();
+		EnemyBaseAbilitiesComponent->AbilityFromType(EAbilityType::DeathCry)->CoreBeginAbility();
+		return true;
+	}
+	return false;
+}
+
 void ABaseAICharacter::ReceivedDamage(float Damage, AActor* DamageCauser) {
 	SetTarget(DamageCauser);
-	TookDamageEvent.Broadcast();
 	
 	if (TryMitigateDamage()) return;
 	
 	Health -= Damage;
+	TookDamageEvent.Broadcast();
+	
 	if (AIState == EAIState::Chase || AIState == EAIState::Idle && !GetCurrentMontage()) {
 		if (IsValid(HurtMontage) && AIState != EAIState::Dead) PlayAnimMontage(HurtMontage, 1);
 	}
@@ -124,31 +150,45 @@ void ABaseAICharacter::SetTarget(AActor* NewTarget) {
 	
 	if (AMainCharacter* CharacterTarget = Cast<AMainCharacter>(NewTarget))
 		ControllerRef->GetBlackboardComponent()->SetValueAsObject("ActorTarget", CharacterTarget);
+
+	ControllerRef->GetAIPerceptionComponent()->SetActive(false);
+	StatusBar->SetVisibility(true);
+	DetectedEvent.Broadcast();
 }
 
 void ABaseAICharacter::DeathStart() {
 	AIState = EAIState::Dead;
+
+	StatusBar->SetVisibility(false);
+
+	if (TryDeathCry()) return;
+	
+	if (!IsValid(ControllerRef)) {
+		DeathDestroy();
+		return;
+	}
 	
 	if (IsValid(DeathMontage)) {
 		StopAnimMontage();
 		StopCurrentAnimation();
-		if (IsValid(ControllerRef)) {
-			ControllerRef->StopMovement();
-			if (IsValid(ControllerRef->GetAIBehaviourTreeComponent())) {
-				ControllerRef->GetAIBehaviourTreeComponent()->StopTree();
-				ControllerRef->GetAIBehaviourTreeComponent()->StopLogic("Death");
-			}
+		
+		ControllerRef->StopMovement();
+		if (IsValid(ControllerRef->GetAIBehaviourTreeComponent())) {
+			ControllerRef->GetAIBehaviourTreeComponent()->StopTree();
+			ControllerRef->GetAIBehaviourTreeComponent()->StopLogic("Death");
 		}
+		
 		if (IsValid(ControllerRef->GetAIPerceptionComponent())) {
 			ControllerRef->GetAIPerceptionComponent()->SetSenseEnabled(UAISense::StaticClass(), false);
 		}
+		ControllerRef->ClearFocus(EAIFocusPriority::Gameplay);
 		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		GetCapsuleComponent()->SetCanEverAffectNavigation(false);
 		PlayAnimMontage(DeathMontage, 1);
-		//FTimerHandle DeathTimerHandle;
-		//GetWorld()->GetTimerManager().SetTimer(DeathTimerHandle, this, &ABaseAICharacter::DeathDestroy, 1, false);
-
+		return;
 	}
-	else DeathDestroy();
+
+	DeathDestroy();
 }
 
 void ABaseAICharacter::StopCurrentAnimation() {

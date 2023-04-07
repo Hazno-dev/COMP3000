@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "GenerationEnums.h"
 #include "GameFramework/Actor.h"
+#include "LevelInstance/LevelInstanceActor.h"
+#include "Engine/LevelStreamingDynamic.h"
 #include "TileBase.generated.h"
 
 UCLASS()
@@ -29,14 +31,20 @@ public:
 	TEnumAsByte<EConnectionType> ConnectionType;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tile Data")
-	FName LevelName;
+	FVector2D TileSize;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tile Data")
-	ULevelStreaming* LevelInstance;
+	UPROPERTY()
+	ULevelStreamingDynamic* LevelInstance;
+
+	UPROPERTY(EditAnywhere, Category = Level, meta = (NoCreate, DisplayName="Level"))
+	TSoftObjectPtr<UWorld> WorldAsset;
 
 	/* Is the tile able to rotate along every axis */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tile Data")
 	bool bMultiDirectional;
+
+	UPROPERTY()
+	bool bIsLevelLoaded;
 	
 protected:
 	// Called when the game starts or when spawned

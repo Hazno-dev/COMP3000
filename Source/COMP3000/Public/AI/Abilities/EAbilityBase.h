@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Heroes/Abilities/AbilityData.h"
+#include "World/FadeText.h"
 #include "EAbilityBase.generated.h"
 
 class ABaseAICharacter;
@@ -22,7 +23,7 @@ public:
 	
 	virtual void CustomTick(float DeltaTime);
 
-	virtual void CustomBeginPlay(ABaseAICharacter* AICharacter, UWorld* World);
+	virtual void CustomBeginPlay(ABaseAICharacter* AICharacter, UWorld* World, TSubclassOf<AFadeText> InFadeTextClass = nullptr);
 
 	//Usage Functions
 	UFUNCTION(BlueprintCallable, Category = "ACore Functions")
@@ -71,6 +72,9 @@ public:
 	TEnumAsByte<EAbilityType> AbilityType;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
+	bool bCanBeInterrupted;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
 	bool aSyncRecharge;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
@@ -104,5 +108,8 @@ protected:
 	float BaseCharacterSpeed;
 
 	float BaseCharacterAcceleration;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
+	TSubclassOf<AFadeText>  FadeTextClass;
 
 };

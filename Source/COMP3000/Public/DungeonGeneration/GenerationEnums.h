@@ -57,6 +57,14 @@ enum ETileDirection
 	NSEW
 };
 
+UENUM(BlueprintType)
+enum class EGeneratorMode : uint8
+{
+	FullyRandom UMETA(DisplayName = "Fully Random"),
+	Hybrid UMETA(DisplayName = "Hybrid"),
+	Fixed UMETA(DisplayName = "Fixed"),
+};
+
 USTRUCT(BlueprintType)
 struct FTileInfo
 {
@@ -77,7 +85,6 @@ struct FTileInfo
 		Directions.Add(ECardinalPoints::West, false);
 	}
 };
-
 
 class COMP3000_API GenerationEnums
 {

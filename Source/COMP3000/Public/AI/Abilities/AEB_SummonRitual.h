@@ -7,6 +7,7 @@
 #include "NiagaraSystem.h"
 #include "EnvironmentQuery/EnvQuery.h"
 #include "EnvironmentQuery/EnvQueryManager.h"
+#include "Heroes/Abilities/StatusEffectBase.h"
 #include "AEB_SummonRitual.generated.h"
 
 /**
@@ -43,6 +44,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AbilityData")
 	uint8 SummonCount;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AbilityData")
+	TSubclassOf<UStatusEffectBase> SummonStatusEffect;
+
 	UPROPERTY(EditDefaultsOnly, Category = "EQS")
 	TObjectPtr<UEnvQuery> SummonSelectionEQS;
 
@@ -57,5 +61,6 @@ private:
 
 	UFUNCTION()
 	void Summon();
-	
+
+	UStatusEffectBase* SummonStatusEffectRef;
 };

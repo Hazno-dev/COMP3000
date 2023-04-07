@@ -20,6 +20,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abilities")
 	TArray<TSubclassOf<AEAbilityBase>> AbilitiesArray;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abilities Data")
+	TSubclassOf<AFadeText> FadeTextClass;
+
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
@@ -40,5 +43,9 @@ public:
 private:
 
 	UPROPERTY()
-	ABaseAICharacter* AICharacterRef;		
+	ABaseAICharacter* AICharacterRef;
+
+	UPROPERTY()
+	TArray<AEAbilityBase*> AbilityInstances;
+
 };

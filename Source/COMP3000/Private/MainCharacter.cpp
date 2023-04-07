@@ -93,6 +93,8 @@ void AMainCharacter::BeginPlay()
 	SavedController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
 	SavedController->Possess(this);
 	SavedController->bShowMouseCursor = true;
+	SavedController->bEnableStreamingSource = true;
+	SavedController->SetIsSpatiallyLoaded(true);
 
 	//Assign TChannel for aiming
 	TraceChannel = UEngineTypes::ConvertToTraceType(ECC_Visibility);

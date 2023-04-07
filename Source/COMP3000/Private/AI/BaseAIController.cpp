@@ -3,6 +3,7 @@
 
 #include "AI/BaseAIController.h"
 
+#include "AI/BaseAICharacter.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Engine/Engine.h"
@@ -46,5 +47,12 @@ void ABaseAIController::OnPossess(APawn* InPawn) {
 }
 
 void ABaseAIController::OnTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus) {
-	Blackboard->SetValueAsObject("ActorTarget", Actor);
+	//Blackboard->SetValueAsObject("ActorTarget", Actor);
+	
+	ABaseAICharacter* AICharacter = Cast<ABaseAICharacter>(GetPawn());
+	if (IsValid(AICharacter)) AICharacter->SetTarget(Actor);
+
+	PerceptionComponent->SetActive(false);
+	PerceptionComponent->OnTargetPerceptionUpdated.RemoveDynamic(this, &ABaseAIController::OnTargetPerceptionUpdated);
+	
 }

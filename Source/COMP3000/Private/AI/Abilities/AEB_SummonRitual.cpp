@@ -10,17 +10,22 @@
 void AAEB_SummonRitual::BeginAbility() {
 	Super::BeginAbility();
 
+	//Safety Checks
 	if (!IsValid(SummonSelectionEQS) || !IsValid(SummonedActor) || SummonCount == 0) return;
 
+	//Raycast VFX to ground
 	FVector GroundLocation = UTraceHelpers::TraceGroundLocation(AICharacterRef, 100.f, 1000.f);
 	if (GroundLocation == FVector::ZeroVector) GroundLocation = AICharacterRef->GetActorLocation();
 
+	//Play VFX
 	if (IsValid(SummonVFX)) 
 			SpawnedVFX.Add(UNiagaraFunctionLibrary::SpawnSystemAtLocation
 			(WorldRef, SummonVFX, GroundLocation, FRotator::ZeroRotator, FVector::OneVector));
-	
+
+	//Play Summon Animation
 	if (IsValid(SummonMontage)) AICharacterRef->PlayAnimMontage(SummonMontage);
-	
+
+	//EQS Query
 	if (const auto PlayerRef = WorldRef->GetFirstPlayerController()->GetPawn())
 		QueryRequest = FEnvQueryRequest(SummonSelectionEQS, PlayerRef);
 
@@ -33,6 +38,10 @@ void AAEB_SummonRitual::BeginAbility() {
 		}
 	});
 
+	//Status Effect (Visual Only)
+	if (IsValid(SummonStatusEffect)) SummonStatusEffectRef = AICharacterRef->EnemyStatusEffectSystemComponent->AddStatusEffect(SummonStatusEffect, AbilityDuration);
+
+	//Execute EQS Query
 	QueryRequest.Execute(EEnvQueryRunMode::AllMatching, QueryFinishedDelegate);
 }
 
@@ -49,6 +58,8 @@ void AAEB_SummonRitual::EndAbility() {
 void AAEB_SummonRitual::InterruptAbility() {
 	Super::InterruptAbility();
 
+	if (IsValid(SummonStatusEffectRef)) AICharacterRef->EnemyStatusEffectSystemComponent->RevokeStatusEffect(SummonStatusEffectRef);
+	
 	for (UNiagaraComponent* VFX : SpawnedVFX) {
 		if (IsValid(VFX)) {
 			VFX->Deactivate();
@@ -70,29 +81,32 @@ void AAEB_SummonRitual::SetSummonLocations(TSharedPtr<FEnvQueryResult> Result) {
 }
 
 void AAEB_SummonRitual::Summon() {
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Summoning %d actors"), SummonLocations.Num()));
+	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Summoning %d actors"), SummonLocations.Num()));
 	if (SummonLocations.Num() == 0) return;
+	if (!IsValid(SummonedActor)) return;
 
 	for (int i = 0; i < SummonLocations.Num(); i++) {
-		if (IsValid(SummonedActor)) {
+		ABaseAICharacter* SpawnedActor = WorldRef->SpawnActor<ABaseAICharacter>(SummonedActor, SummonLocations[i], FRotator::ZeroRotator);
+		
+		if (!IsValid(SpawnedActor)) continue;
 			
-			ABaseAICharacter* SpawnedActor = WorldRef->SpawnActor<ABaseAICharacter>(SummonedActor, SummonLocations[i], FRotator::ZeroRotator);
+		SpawnedActor->SetInstigator(AICharacterRef);
+		const APlayerController* PlayerController = WorldRef->GetFirstPlayerController();
+		
+		if (IsValid(PlayerController)) {
 			
-			if (IsValid(SpawnedActor)) {
-				
-				SpawnedActor->SetInstigator(AICharacterRef);
-				const APlayerController* PlayerController = WorldRef->GetFirstPlayerController();
-				
-				if (IsValid(PlayerController)) {
-					
-					APawn* PlayerPawn = PlayerController->GetPawn();
-					if (IsValid(PlayerPawn)) SpawnedActor->SetTarget(PlayerPawn);
-				}
-			}
-			
-			if (IsValid(SummonedActorVFX)) SpawnedVFX.Add( UNiagaraFunctionLibrary::SpawnSystemAtLocation(WorldRef,
-				SummonedActorVFX, SummonLocations[i], FRotator::ZeroRotator, FVector::OneVector));
+			APawn* PlayerPawn = PlayerController->GetPawn();
+			if (IsValid(PlayerPawn)) SpawnedActor->SetTarget(PlayerPawn);
 		}
+		
+		if (IsValid(SummonedActorVFX)) {
+			FVector GroundLocation = UTraceHelpers::TraceGroundLocation(SpawnedActor, 100.f, 1000.f);
+			if (GroundLocation == FVector::ZeroVector) GroundLocation = SummonLocations[i];
+			
+				SpawnedVFX.Add( UNiagaraFunctionLibrary::SpawnSystemAtLocation(WorldRef,
+			SummonedActorVFX, GroundLocation, FRotator::ZeroRotator, FVector::OneVector));
+		}
+		
 	}
 
 	SummonLocations.Empty();

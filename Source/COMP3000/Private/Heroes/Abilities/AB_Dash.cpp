@@ -5,6 +5,7 @@
 
 #include "NiagaraFunctionLibrary.h"
 #include "MainCharacter.h"
+#include "Components/CapsuleComponent.h"
 #include "Heroes/HeroGenerator.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Heroes/CameraDynamicMotion.h"
@@ -14,7 +15,8 @@ void AAB_Dash::BeginAbility() {
 	
 	if (MainCharacterRef == nullptr) return;
 
-	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, "Dash");
+	MainCharacterRef->GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Ignore);
+	MainCharacterRef->GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel3, ECollisionResponse::ECR_Ignore);
 	
 	UNiagaraFunctionLibrary::SpawnSystemAttached(DashExplosiveVFX[0], MainCharacterRef->GetMesh(), 
 "Pelvis", FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
@@ -28,12 +30,15 @@ void AAB_Dash::BeginAbility() {
 		CreatedDashLine->SetFloatParameter("User.Duration", AbilityDuration);
 	}
 
-	DashDirection = (MainCharacterRef->GetCharacterMovement()->Velocity.GetSafeNormal2D().IsNearlyZero())
-		? MainCharacterRef->GetActorForwardVector() : MainCharacterRef->GetCharacterMovement()->Velocity.GetSafeNormal();
+	DashDirection = (MainCharacterRef->GetCharacterMovement()->GetLastInputVector().IsNearlyZero())
+		? MainCharacterRef->GetActorForwardVector() : MainCharacterRef->GetCharacterMovement()->GetLastInputVector();
 
 	DashDirection.Z = 0.f;
+
+	MainCharacterRef->Crouch();
 	
 	MainCharacterRef->GetCharacterMovement()->MaxWalkSpeed = MainCharacterRef->GetCharacterMovement()->MaxWalkSpeed + DashMovementSpeedIncrease;
+	MainCharacterRef->GetCharacterMovement()->MaxWalkSpeedCrouched = MainCharacterRef->GetCharacterMovement()->MaxWalkSpeedCrouched + DashMovementSpeedIncrease;
 	MainCharacterRef->GetCharacterMovement()->MaxAcceleration = MainCharacterRef->GetCharacterMovement()->MaxAcceleration + 100000000.f;
 
 	MainCharacterRef->CameraDynamicMotion->SetCameraLag(1.f);
@@ -52,16 +57,22 @@ void AAB_Dash::EndAbility() {
 	Super::EndAbility();
 
 	if (MainCharacterRef == nullptr) return;
+
+	MainCharacterRef->UnCrouch();
 	
 	MainCharacterRef->HeroGeneratorComponent->SetMeshesHidden(false);
 	UNiagaraFunctionLibrary::SpawnSystemAttached(DashExplosiveVFX[0], MainCharacterRef->GetMesh(), 
 "Pelvis", FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
 
 	MainCharacterRef->GetCharacterMovement()->MaxWalkSpeed = BaseCharacterSpeed;
+	MainCharacterRef->GetCharacterMovement()->MaxWalkSpeedCrouched = BaseCharacterSpeed;
 	MainCharacterRef->GetCharacterMovement()->MaxAcceleration = BaseCharacterAcceleration;
 
 	EnableInput(MainCharacterRef->SavedController);
 	MainCharacterRef->GetCharacterMovement()->StopMovementImmediately();
+	
+	MainCharacterRef->GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Block);
+	MainCharacterRef->GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel3, ECollisionResponse::ECR_Block);
 	
 }
 

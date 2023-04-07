@@ -16,4 +16,6 @@ void UBTTask_FacePlayer::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* Node
 	FRotator InterpValue = FMath::RInterpConstantTo(AIController->GetPawn()->GetActorRotation(), Destination, DeltaSeconds, 100.0f);
 
 	AIController->GetPawn()->SetActorRotation(InterpValue);
+
+	FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
 }

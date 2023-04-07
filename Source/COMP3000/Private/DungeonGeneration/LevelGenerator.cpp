@@ -4,10 +4,14 @@
 #include "DungeonGeneration/LevelGenerator.h"
 
 #include <string>
+#include <vector>
 
 #include "Engine/LevelStreaming.h"
+#include "Engine/LevelStreamingDynamic.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetArrayLibrary.h"
+#include "LevelInstance/LevelInstanceActor.h"
+#include "WorldPartition/WorldPartition.h"
 
 // Sets default values
 ALevelGenerator::ALevelGenerator()
@@ -43,11 +47,15 @@ void ALevelGenerator::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	//DEBUG 
+	if (!SpawnedTiles.IsEmpty())
+	{
+		//UpdateVisibleLevels();
+	}
+
 	if (PlayerController != nullptr)
 	{
 		if (PlayerController->WasInputKeyJustPressed(EKeys::E))
 		{
-			CurrentResetAttempts = 0;
 			ResetGeneratedLevel();
 			GenerateLevel();
 		}
@@ -134,7 +142,6 @@ void ALevelGenerator::SpawnTileLayout()
 	for (auto Tile : TileLayout)
 	{
 		std::vector<UClass*> ValidTiles;
-		std::vector<TEnumAsByte<EConnectionType>> ValidConnections;
 		
 		switch (Tile.Value.Type)
 		{
@@ -169,30 +176,40 @@ void ALevelGenerator::SpawnTileLayout()
 //Spawn a Tile
 void ALevelGenerator::SpawnTile(UClass* TileClass, const FVector& position, int Rotation = 0)
 {
-	//SpawnedActor Rules
+	// SpawnedActor Rules
 	FActorSpawnParameters SpawnInfo;
 	SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	FAttachmentTransformRules TransformInfo (EAttachmentRule::KeepRelative,
 		EAttachmentRule::SnapToTarget, EAttachmentRule::KeepRelative,true);
-	
+    
 	ATileBase* TempTile = GetWorld()->SpawnActor<ATileBase>(TileClass, position, FRotator(0,Rotation,0), SpawnInfo);
+
+	if (!IsValid(TempTile)) return;
+	
 	TempTile->AttachToActor(this, TransformInfo);
 	TempTile->SetActorRotation(FRotator(0,Rotation,0));
 	TempTile->SetActorHiddenInGame(!bShowDebugTiles);
 
-	//gengine rotation parameter
-	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::FromInt(Rotation));
+	// Load level instances asynchronously
+	if (!TempTile->WorldAsset.IsNull()) {
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Spawning Level Instance"));
 
-	if (TempTile->LevelName != "") {
-		TempTile->LevelInstance = UGameplayStatics::GetStreamingLevel(GetWorld(), TempTile->LevelName)
-			->CreateInstance(FString("Tile" + FString::FromInt(SpawnedTiles.Num())));
-		if (TempTile->bMultiDirectional) TempTile->LevelInstance->LevelTransform = FTransform(FRotator(0,Rotation,0), TempTile->GetActorLocation());
-		else TempTile->LevelInstance->LevelTransform = FTransform(FRotator(0,0,0), TempTile->GetActorLocation());
+		FTransform LevelTransform;
+		if (TempTile->bMultiDirectional) LevelTransform = FTransform(FRotator(0, Rotation, 0), position);
+		else LevelTransform = FTransform(FRotator(0, 0, 0), position);
+
+		FString LevelInstanceName = FString("Tile") + FString::FromInt(SpawnedTiles.Num());
+		TempTile->LevelInstance = ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(GetWorld(), TempTile->WorldAsset, LevelTransform.GetLocation(), LevelTransform.Rotator(), TempTile->bIsLevelLoaded);
 		TempTile->LevelInstance->SetShouldBeLoaded(true);
 		TempTile->LevelInstance->SetShouldBeVisible(true);
+
 	}
+	
 	SpawnedTiles.Add(TempTile);
+
+
 }
+
 
 //Get a tiles vector2d, convert into worldspace location.
 FVector ALevelGenerator::GetTileWorldspace(FVector2D InVec)
@@ -202,43 +219,68 @@ FVector ALevelGenerator::GetTileWorldspace(FVector2D InVec)
 
 FVector2D ALevelGenerator::FindNextRandomLocation(FVector2D InVec, TEnumAsByte<ECardinalPoints> WantedDirection)
 {
+	//if (InVec.Equals(FVector2D(10,0))) return FVector2D(100,0);
+	
 	//Locations to seek
 	if (WantedDirection == ECardinalPoints::Random)
 	{
-		std::vector<FVector2D> ValidLocations;
-		std::vector<TEnumAsByte<ECardinalPoints>> ValidDirects;
+		TArray<FVector2D> ValidLocations;
+		TArray<TEnumAsByte<ECardinalPoints>> ValidDirects;
 		for (auto CurrentSeek : SeekingPoints) {
 			if (TileLayout.Find(InVec + CurrentSeek.Value) == nullptr) {
-				ValidLocations.push_back(InVec + CurrentSeek.Value);
-				ValidDirects.push_back(CurrentSeek.Key);
+				ValidLocations.Push(InVec + CurrentSeek.Value);
+				ValidDirects.Push(CurrentSeek.Key);
 			}
 		}
-		int rand = FMath::RandRange(0, ValidLocations.size() - 1);
-		if (ValidLocations.size() > 1) {
-			if (!IsThisCorridor(InVec, ValidDirects[rand])) {
-				CorridorsSpawned = 0;
-				TempDirect = ValidDirects[rand];
-				return ValidLocations[rand];
+		
+		
+		if (ValidLocations.Num() > 1) {
+			TArray<float> distancesToTarget;
+			for (const FVector2D& location : ValidLocations) {
+				distancesToTarget.Add(FVector2D::Distance(location, FVector2D(10,0)));
 			}
-			CorridorsSpawned++;
-			if (CorridorsSpawned >= MaxInRowAmount + 1)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("BrokenUpCorridors"), CorridorsSpawned);
-				ValidLocations.erase(ValidLocations.begin() + rand);
-				ValidDirects.erase(ValidDirects.begin() + rand);
-				CorridorsSpawned = 0;
-				if (ValidLocations.size() > 1)
-				{
-					rand = FMath::RandRange(0, ValidLocations.size() - 1);
-					TempDirect = ValidDirects[rand];
-					return ValidLocations[rand];
+
+			// Find the closest non-corridor location
+			int closestNonCorridorIndex = -1;
+			float closestNonCorridorDistance = FLT_MAX;
+			for (int i = 0; i < ValidLocations.Num(); i++) {
+				if (!IsThisCorridor(InVec, ValidDirects[i]) && distancesToTarget[i] < closestNonCorridorDistance) {
+					closestNonCorridorIndex = i;
+					closestNonCorridorDistance = distancesToTarget[i];
 				}
 			}
-			TempDirect = ValidDirects[rand];
-			return ValidLocations[rand];
-			
+
+			// If a corridor has been created too many times in a row, choose the closest non-corridor location
+			if (CorridorsSpawned >= MaxInRowAmount && closestNonCorridorIndex != -1) {
+				TempDirect = ValidDirects[closestNonCorridorIndex];
+				CorridorsSpawned = 0;
+				return ValidLocations[closestNonCorridorIndex];
+			}
+
+			// Find the closest location
+			int closestIndex = -1;
+			float closestDistance = FLT_MAX;
+			for (int i = 0; i < ValidLocations.Num(); i++) {
+				if (distancesToTarget[i] < closestDistance) {
+					closestIndex = i;
+					closestDistance = distancesToTarget[i];
+				}
+			}
+
+			// If the closest location is a corridor, increment the corridor counter
+			if (IsThisCorridor(InVec, ValidDirects[closestIndex])) {
+				CorridorsSpawned++;
+			} else {
+				CorridorsSpawned = 0;
+			}
+
+			// If a closest valid location is found, return it
+			if (closestIndex != -1) {
+				TempDirect = ValidDirects[closestIndex];
+				return ValidLocations[closestIndex];
+			}
 		}
-		if (ValidLocations.size() > 0) {
+		if (ValidLocations.Num() > 0) {
 			TempDirect = ValidDirects[0];
 			return ValidLocations[0];
 		}
@@ -325,6 +367,53 @@ FVector2D ALevelGenerator::FurthestFromStart(FVector2D InVec, TEnumAsByte<ECardi
 	}
 	return InVec;
 }
+
+void ALevelGenerator::UpdateVisibleLevels()
+{
+	APawn* PlayerPawn = GetWorld()->GetFirstPlayerController()->GetPawn();
+    
+	if (!PlayerPawn)
+	{
+		return;
+	}
+
+	int32 DebugIndex = 0;
+
+	for (ATileBase* Tile : SpawnedTiles)
+	{
+		if (Tile->LevelInstance)
+		{
+			float SquaredDistance = PlayerPawn->GetSquaredDistanceTo(Tile);
+			float Distance = FMath::Sqrt(SquaredDistance);
+
+			FString DebugMessage = FString::Printf(TEXT("Tile %d: Distance: %f, Loaded: %s"), DebugIndex, Distance, Tile->LevelInstance->IsLevelLoaded() ? TEXT("True") : TEXT("False"));
+			GEngine->AddOnScreenDebugMessage(DebugIndex, 1.0f, FColor::White, DebugMessage);
+
+			if (SquaredDistance <= FMath::Square(500))
+			{
+				if (!Tile->LevelInstance->IsLevelLoaded())
+				{
+					Tile->LevelInstance->SetShouldBeLoaded(true);
+					Tile->LevelInstance->SetShouldBeVisible(true);
+				}
+			}
+			else
+			{
+				if (Tile->LevelInstance->IsLevelLoaded())
+				{
+					Tile->LevelInstance->SetShouldBeLoaded(false);
+					Tile->LevelInstance->SetShouldBeVisible(false);
+				}
+			}
+
+			DebugIndex++;
+		}
+	}
+}
+
+
+
+
 
 void ALevelGenerator::GenerateAdditionalTiles()
 {
@@ -415,8 +504,8 @@ UClass* ALevelGenerator::LinkAssetTiles(TTuple<UE::Math::TVector2<double>, FTile
 				CurrentGenericTile->GetDefaultObject<ATileBase>()->TileConnections.GenerateValueArray(CurrentTileListDirections);
 				for (int i = 0; i < 4; i++)
 				{
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("CurrentTileListDirections: %i"), CurrentTileListDirections[i]));
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("CurrentTileMapDirections: %i"), CurrentTileMapDirections[i]));
+					//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("CurrentTileListDirections: %i"), CurrentTileListDirections[i]));
+					//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("CurrentTileMapDirections: %i"), CurrentTileMapDirections[i]));
 					if (CurrentTileMapDirections[i] != CurrentTileListDirections[i]) break;
 					if (i == 3) ValidTiles.push_back(CurrentGenericTile);
 				}

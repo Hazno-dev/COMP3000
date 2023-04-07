@@ -26,13 +26,15 @@ void UEnemyBaseAbilities::BeginPlay()
 	if (!Cast<ABaseAICharacter>(GetOwner())) return;
 	
 	AICharacterRef = Cast<ABaseAICharacter>(GetOwner());
-
-	//gengine aicharacterref
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("AICharacterRef: %s"), *AICharacterRef->GetName()));
 	
-	for (auto Ability : AbilitiesArray) {
-		Ability.GetDefaultObject()->CustomBeginPlay(AICharacterRef, GetWorld());
+	for (const auto AbilityClass: AbilitiesArray)
+	{
+		AEAbilityBase* AbilityInstance = NewObject<AEAbilityBase>(this, AbilityClass);
+		AbilityInstance->CustomBeginPlay(AICharacterRef, GetWorld(), FadeTextClass);
+		AbilityInstance->SetOwner(AICharacterRef);
+		AbilityInstances.Add(AbilityInstance);
 	}
+
 }
 
 
@@ -41,8 +43,10 @@ void UEnemyBaseAbilities::TickComponent(float DeltaTime, ELevelTick TickType, FA
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	for (auto Ability : AbilitiesArray) {
-		Ability.GetDefaultObject()->CustomTick(DeltaTime);
+	if (AbilityInstances.Num() == 0) return;
+	
+	for (auto Ability : AbilityInstances) {
+		Ability->CustomTick(DeltaTime);
 	}
 }
 
@@ -52,17 +56,22 @@ void UEnemyBaseAbilities::StartAbility(AEAbilityBase* Ability) {
 
 //Returns an ability that matches the class if it exists
 AEAbilityBase* UEnemyBaseAbilities::AbilityFromSubclass(const TSubclassOf<AEAbilityBase> AbilityClass) const {
-	for (auto Ability : AbilitiesArray) {
-		if (Ability == AbilityClass) return Ability.GetDefaultObject();
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("AbilityInstances: %d"), AbilityInstances.Num()));
+	for (auto Ability : AbilityInstances) {
+		if (Ability->GetClass() == AbilityClass) return Ability;
 	}
 	return nullptr;
 }
 
 //Returns an ability that matches the type and has charges if it exists
-AEAbilityBase* UEnemyBaseAbilities::AbilityFromType(const EAbilityType AbilityType) const {
-	for (auto Ability : AbilitiesArray) {
-		if (Ability.GetDefaultObject()->AbilityType == AbilityType
-			&& Ability.GetDefaultObject()->CurrentCharges > 0) return Ability.GetDefaultObject();
+AEAbilityBase* UEnemyBaseAbilities::AbilityFromType(const EAbilityType AbilityType) const
+{
+	for (AEAbilityBase* AbilityInstance : AbilityInstances)
+	{
+		if (AbilityInstance->AbilityType == AbilityType && AbilityInstance->CurrentCharges > 0)
+			return AbilityInstance;
+		
 	}
 	return nullptr;
 }
+

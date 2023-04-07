@@ -16,11 +16,12 @@ AEAbilityBase::AEAbilityBase()
 	bIsAbilityPlaying = false;
 	aSyncRecharge = false;
 	CurrentCharges = MaxCharges;
+	bCanBeInterrupted = true;
 	AbilityType = EAbilityType::Damage;
 	
 }
 
-void AEAbilityBase::CustomBeginPlay(ABaseAICharacter* AICharacter, UWorld* World) {
+void AEAbilityBase::CustomBeginPlay(ABaseAICharacter* AICharacter, UWorld* World, TSubclassOf<AFadeText> InFadeTextClass) {
 	Super::BeginPlay();
 
 	if (!IsValid(AICharacter) || !IsValid(World)) return;
@@ -32,6 +33,7 @@ void AEAbilityBase::CustomBeginPlay(ABaseAICharacter* AICharacter, UWorld* World
 	BaseCharacterAcceleration = AICharacterRef->GetCharacterMovement()->MaxAcceleration;
 	bIsAbilityPlaying = false;
 	AICharacterRef->TookDamageEvent.AddDynamic(this, &AEAbilityBase::CoreInterruptAbility);
+	if (IsValid(InFadeTextClass)) FadeTextClass = InFadeTextClass;
 
 	CooldownTimerHandle.Invalidate();
 }
@@ -47,11 +49,7 @@ void AEAbilityBase::CustomTick(float DeltaTime) {
 
 void AEAbilityBase::CoreBeginAbility() {
 	if (!IsValid(AICharacterRef)) return;
-
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Ability: %s"), *GetName()));
-
-	//gengine bability playing and current charges
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("bIsAbilityPlaying: %s"), bIsAbilityPlaying ? TEXT("true") : TEXT("false")));
+	if (!IsValid(WorldRef)) return;
 	
 	if (!bIsAbilityPlaying && CurrentCharges > 0) {
 		bIsAbilityPlaying = true;
@@ -124,8 +122,8 @@ void AEAbilityBase::EndCooldown() {
 }
 
 void AEAbilityBase::CoreInterruptAbility() {
-	if (bIsAbilityPlaying) {
-		bIsAbilityPlaying = false;
+	if (bIsAbilityPlaying && bCanBeInterrupted) {
+		bIsAbilityPlaying = false; 
 		bIsInterrupted = true;
 		WorldRef->GetTimerManager().ClearTimer(AbilityEndTimerHandle);
 		AbilityEndTimerHandle.Invalidate();
@@ -133,6 +131,8 @@ void AEAbilityBase::CoreInterruptAbility() {
 		CooldownTimerHandle.Invalidate();
 		CoreStartCooldown();
 		InterruptAbility();
+		if (IsValid(FadeTextClass)) WorldRef->SpawnActor<AFadeText>(FadeTextClass,
+			AICharacterRef->GetActorLocation() + FVector(0,0,50), FRotator::ZeroRotator);
 	}
 }
 

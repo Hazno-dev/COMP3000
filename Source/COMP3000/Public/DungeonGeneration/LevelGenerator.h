@@ -146,6 +146,9 @@ public:
 	UFUNCTION()
 	FVector2D FurthestFromStart(FVector2D InVec, TEnumAsByte<ECardinalPoints> Direction);
 	
+	UFUNCTION()
+	void UpdateVisibleLevels();
+	
 	
 	UClass* LinkAssetTiles(TTuple<UE::Math::TVector2<double>, FTileInfo> InTile, TArray<UClass*> InList);
 
