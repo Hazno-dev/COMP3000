@@ -37,10 +37,14 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Status Effect")
 	UNiagaraSystem* StatusEffectVFX;
-
+	
 	UFUNCTION()
 	void SetDuration (float InDuration) { Duration = InDuration; };
 
 	UFUNCTION()
 	void SetStrength (float InStrength) { Strength = InStrength; };
+
+	UPROPERTY()
+	FTimerHandle StatusEffectTimerHandle;
+	
 };

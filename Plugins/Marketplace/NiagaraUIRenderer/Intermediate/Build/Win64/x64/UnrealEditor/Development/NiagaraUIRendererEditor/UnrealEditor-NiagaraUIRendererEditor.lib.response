@@ -1,0 +1,12 @@
+/NOLOGO
+/errorReport:prompt
+/MACHINE:x64
+/SUBSYSTEM:WINDOWS
+/DEF
+/NAME:"UnrealEditor-NiagaraUIRendererEditor.dll"
+/IGNORE:4221
+/NODEFAULTLIB
+"C:\Users\callu\Documents\COMP3000 5.1\Intermediate\Build\Win64\x64\COMP3000Editor\Development\UnrealEd\SharedPCH.UnrealEd.ShadowErrors.InclOrderUnreal5_0.h.obj"
+"C:\Users\callu\Documents\COMP3000 5.1\Plugins\Marketplace\NiagaraUIRenderer\Intermediate\Build\Win64\x64\UnrealEditor\Development\NiagaraUIRendererEditor\Module.NiagaraUIRendererEditor.cpp.obj"
+"C:\Users\callu\Documents\COMP3000 5.1\Plugins\Marketplace\NiagaraUIRenderer\Intermediate\Build\Win64\x64\UnrealEditor\Development\NiagaraUIRendererEditor\Default.rc2.res"
+/OUT:"C:\Users\callu\Documents\COMP3000 5.1\Plugins\Marketplace\NiagaraUIRenderer\Intermediate\Build\Win64\x64\UnrealEditor\Development\NiagaraUIRendererEditor\UnrealEditor-NiagaraUIRendererEditor.lib"

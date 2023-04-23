@@ -13,7 +13,6 @@ UEnemyStatusEffectSystem::UEnemyStatusEffectSystem()
 	// ...
 }
 
-
 // Called when the game starts
 void UEnemyStatusEffectSystem::BeginPlay()
 {
@@ -39,16 +38,20 @@ UStatusEffectBase* UEnemyStatusEffectSystem::AddStatusEffect(TSubclassOf<UStatus
 	if (Duration != -1.f) StatusEffectBase->SetDuration(Duration);
 	if (Strength != -1.f) StatusEffectBase->SetStrength(Strength);
 	
+	UStatusEffectBase* ReturnedEffect = IsStatusEffectAlreadyApplied(StatusEffectBase);
+
+	if (IsValid(ReturnedEffect) && !ReturnedEffect->bIsPermanent) RevokeStatusEffect(IsStatusEffectAlreadyApplied(StatusEffectBase));
+	
 	// Add the status effect to the array
-	CurrentStatusEffects.Add(StatusEffectBase);
+	if (!IsValid(ReturnedEffect)) CurrentStatusEffects.Add(StatusEffectBase);
+		
 
 	// Gengine added a status effect
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Status Effect Added")));
 
 	if (!StatusEffectBase->bIsPermanent)
 	{
-        FTimerHandle TimerHandle;
-        GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this, StatusEffectBase]()
+        GetWorld()->GetTimerManager().SetTimer(StatusEffectBase->StatusEffectTimerHandle, [this, StatusEffectBase]()
         {
             RevokeStatusEffect(StatusEffectBase);
         }, StatusEffectBase->Duration, false);
@@ -60,13 +63,19 @@ UStatusEffectBase* UEnemyStatusEffectSystem::AddStatusEffect(TSubclassOf<UStatus
 void UEnemyStatusEffectSystem::RevokeStatusEffect(UStatusEffectBase* StatusEffectData) {
 	if (!IsValid(StatusEffectData)) return;
 	
-	// Remove the status effect from the array
+	// Remove the status effect from the array, cleanse timer
+	GetWorld()->GetTimerManager().ClearTimer(StatusEffectData->StatusEffectTimerHandle);
+	StatusEffectData->StatusEffectTimerHandle.Invalidate();
+	
 	CurrentStatusEffects.Remove(StatusEffectData);
 	EventRevertStatusEffect.Broadcast();
 }
 
 TArray<UStatusEffectBase*> UEnemyStatusEffectSystem::GetStatusEffectsOfType(EStatusEffect StatusEffectType) {
+	if (!IsValid(this)) return TArray<UStatusEffectBase*>();
 	TArray<UStatusEffectBase*> StatusEffectsOfType;
+
+	if (CurrentStatusEffects.Num() == 0) return StatusEffectsOfType;
 	for (UStatusEffectBase* StatusEffect : CurrentStatusEffects)
 	{
 		if (StatusEffect->StatusEffect == StatusEffectType)
@@ -77,4 +86,18 @@ TArray<UStatusEffectBase*> UEnemyStatusEffectSystem::GetStatusEffectsOfType(ESta
 	return StatusEffectsOfType;
 }
 
+UStatusEffectBase* UEnemyStatusEffectSystem::IsStatusEffectAlreadyApplied(const UStatusEffectBase* InStatusEffectType) {
+	if (!IsValid(InStatusEffectType)) return nullptr;
+	if (CurrentStatusEffects.Num() == 0) return nullptr;
+	
+	for (UStatusEffectBase* StatusEffect : CurrentStatusEffects)
+	{
+		if (StatusEffect->StatusEffect == InStatusEffectType->StatusEffect)
+		{
+			if (StatusEffect->StatusEffect == VisualOnly && StatusEffect->StatusEffectIcon == InStatusEffectType->StatusEffectIcon) return nullptr;
+			return StatusEffect;
+		}
+	}
+	return nullptr;
+}
 

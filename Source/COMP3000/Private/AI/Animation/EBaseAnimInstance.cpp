@@ -20,6 +20,11 @@ void UEBaseAnimInstance::NativeInitializeAnimation() {
 	if (BaseOwningCharacter != nullptr) {
 		BaseMovementComponent = BaseOwningCharacter->GetCharacterMovement();
 		BaseOwningCharacter->EventChangedAIState.AddDynamic(this, &UEBaseAnimInstance::AIStateChange);
+
+		if (IsValid(BaseOwningCharacter->EnemyStatusEffectSystemComponent)) {
+			BaseOwningCharacter->EnemyStatusEffectSystemComponent->EventNewStatusEffect.AddDynamic(this, &UEBaseAnimInstance::AIStateChange);
+			BaseOwningCharacter->EnemyStatusEffectSystemComponent->EventRevertStatusEffect.AddDynamic(this, &UEBaseAnimInstance::AIStateChange);
+		}
 	}
 	
 	
@@ -29,6 +34,9 @@ void UEBaseAnimInstance::AIStateChange() {
 	if (!IsValid(BaseOwningCharacter)) return;
 	
 	AIState = BaseOwningCharacter->GetAIState();
+
+	AnimStatusEffect = (BaseOwningCharacter->EnemyStatusEffectSystemComponent->GetStatusEffectsOfType(Stun).Num() > 0)
+		? EStatusEffect::Stun : EStatusEffect::VisualOnly;
 
 	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("AIState: %d"), AIState));
 }

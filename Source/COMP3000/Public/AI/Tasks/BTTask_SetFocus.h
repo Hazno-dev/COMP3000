@@ -16,4 +16,7 @@ class COMP3000_API UBTTask_SetFocus : public UBTTask_BlackboardBase
 
 private:
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI", meta = (AllowPrivateAccess = "true"))
+	bool BoolInput = true;
 };

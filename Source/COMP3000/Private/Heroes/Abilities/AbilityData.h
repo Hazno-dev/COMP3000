@@ -1,8 +1,10 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/DataTable.h"
 #include "UObject/StructOnScope.h"
 #include "AbilityData.generated.h"
+
 
 UENUM(BlueprintType)
 enum EAbilitySlotType
@@ -13,6 +15,7 @@ enum EAbilitySlotType
 	Ability3,
 	Ultimate
 };
+
 
 UENUM(BlueprintType)
 enum EAbilityType
@@ -32,7 +35,6 @@ enum EStatusEffect
 	Nimble,
 	Stun,
 	Root,
-	Frozen,
 	Burning,
 	Invincible,
 	Berserk,

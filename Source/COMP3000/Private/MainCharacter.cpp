@@ -18,6 +18,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "EnhancedInputComponent.h"
+#include "PlayerAnimInstance.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 // Sets default values
@@ -35,6 +36,7 @@ AMainCharacter::AMainCharacter()
 	ProjectileSpawner->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
 	PlayerBaseAbilitiesComponent = CreateDefaultSubobject<UPlayerBaseAbilities>(TEXT("PlayerBaseAbilities"));
 	HeroGeneratorComponent = CreateDefaultSubobject<UHeroGenerator>(TEXT("HeroGenerator"));
+	HeroManagerComponent = CreateDefaultSubobject<UHeroManagerComponent>(TEXT("HeroManager"));
 
 	H_Left_ParticleSystem = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("H_Left_ParticleSystem"));
 	H_Right_ParticleSystem = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("H_Right_ParticleSystem"));
@@ -100,10 +102,16 @@ void AMainCharacter::BeginPlay()
 	TraceChannel = UEngineTypes::ConvertToTraceType(ECC_Visibility);
 	
 	WorldCursor = GetWorld()->SpawnActor<AWorldCursor>(WorldCursorBP, FVector(0, 0, 0), FRotator(0, 0, 0));
-
+	WorldCursor->ToggleVisibility(false);
+	
 	Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(SavedController->GetLocalPlayer());
 	
 	ArmedToggle.Broadcast();
+
+	HeroManagerComponent->SetupReferences(PlayerBaseAbilitiesComponent, HeroGeneratorComponent, this);
+
+	TArray<UHeroDataInstance*> HeroDataArray = HeroGeneratorComponent->GenerateHero();
+	if (HeroDataArray.Num() > 0) HeroManagerComponent->SetHeroDataArray(HeroDataArray);
 }
 
 
@@ -111,16 +119,13 @@ void AMainCharacter::BeginPlay()
 void AMainCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	PublicRot = GetAimRotation();
+	SetActorRotation(PublicRot);
 	
-	//Rotate player to mouse
-	if (SavedController->GetHitResultUnderCursorByChannel(TraceChannel, true, HitResult)) {
-		PublicRot = FRotator(0, (UKismetMathLibrary::FindLookAtRotation(this->GetActorLocation(), HitResult.Location).Yaw), 0);
-		if (GetCharacterMovement()->Velocity.Size() > 0 && GetCharacterMovement()->GetCurrentAcceleration() != FVector::ZeroVector) SetActorRotation(PublicRot);
-		WorldCursor->MoveCursor(HitResult.Location, HitResult.ImpactNormal);
-	}
+	WorldCursorUpdate();
 
-	HeldKeyManager(DeltaTime);
-
+	FireTimer += DeltaTime;
 }
 
 // Called to bind functionality to input
@@ -162,6 +167,15 @@ void AMainCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 		if (UltimateAction)	{
 			PlayerEnhancedInputComponent->BindAction(UltimateAction, ETriggerEvent::Started, PlayerBaseAbilitiesComponent, &UPlayerBaseAbilities::StartUltimate);
 		}
+		if (CastAction) {
+			PlayerEnhancedInputComponent->BindAction(CastAction, ETriggerEvent::Started, PlayerBaseAbilitiesComponent, &UPlayerBaseAbilities::CastTriggerAnyAbility);
+		}
+		if (CancelCastAction) {
+			PlayerEnhancedInputComponent->BindAction(CancelCastAction, ETriggerEvent::Started, PlayerBaseAbilitiesComponent, &UPlayerBaseAbilities::CastCancelAnyAbility);
+		}
+		if (SwapHeroAction) {
+			PlayerEnhancedInputComponent->BindAction(SwapHeroAction, ETriggerEvent::Started, HeroManagerComponent, &UHeroManagerComponent::SwapHero);
+		}
 	}
 }
 
@@ -179,6 +193,7 @@ void AMainCharacter::PawnClientRestart() {
 			Subsystem->AddMappingContext(BaseInputMappingContext, BaseMappingPriority);
 		}
 	}
+	
 }
 
 void AMainCharacter::SetHandParticlesOnL(bool On) {
@@ -227,6 +242,7 @@ void AMainCharacter::MoveRight(float Value)
 }
 
 void AMainCharacter::EnhancedMove(const FInputActionValue& Value) {
+	
 	if (!IsValid(Controller) || Value.GetMagnitude() == 0.f) return;
 
 	const FRotator Rotation = Controller->GetControlRotation();
@@ -236,17 +252,19 @@ void AMainCharacter::EnhancedMove(const FInputActionValue& Value) {
 	AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y), Value[0]);
 }
 
-void AMainCharacter::Punch()
+void AMainCharacter::Punch(const FInputActionInstance& ActionInstance)
 {
+	if (PlayerBaseAbilitiesComponent->IsAnyAbilityPlayingOrCasting()) return;
+	if (FireTimer < 0.56f) return;
+
 	Punching = true;
-	if (CanFire) {
-		CanFire = false;
-		Armed = true;
-		FistFire.Broadcast();
-		SetHandParticlesOnL(true);
-		SetHandParticlesOnR(true);
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Punch"));
-	}
+	
+	FireTimer = 0.f;;
+	Armed = true;
+	FistFire.Broadcast();
+	SetHandParticlesOnL(true);
+	SetHandParticlesOnR(true);
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Punch"));
 }
 
 void AMainCharacter::StopPunch()
@@ -254,74 +272,36 @@ void AMainCharacter::StopPunch()
 	Punching = false;
 }
 
-void AMainCharacter::StartDash() {
-
-	/*
-	FTimerHandle DelayHandle;
-	WorldCursor->ToggleVisibility(false);
-	
-	DashVector = (GetCharacterMovement()->Velocity.GetSafeNormal().IsNearlyZero())
-		? GetActorForwardVector() : GetCharacterMovement()->Velocity.GetSafeNormal();
-		*/
-
-	PlayerBaseAbilitiesComponent->StartDash();
-	
-	//GetMesh()->SetHiddenInGame(true, true);
-	//UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), DashEffect, GetActorLocation(), GetActorRotation());
-	//GetCharacterMovement()->Deactivate();
-	
-	//GetWorld()->GetTimerManager().SetTimer(DelayHandle, this, &AMainCharacter::EndDash, 0.1f, false);
-	//EndDash();
-}
-
-void AMainCharacter::HeldDash(float DeltaTime) {
-
-	if (GetCharacterMovement()->Velocity.GetSafeNormal().IsNearlyZero()) {
-		DashVector = GetActorForwardVector();
-		WorldCursor->ToggleVisibility(true);
-	} else {
-		DashVector = GetCharacterMovement()->Velocity.GetSafeNormal();
-	}
-}
-
-void AMainCharacter::EndDash() {
-	
-	//HeldTime = 0.0f;
-	PlayerBaseAbilitiesComponent->EndDash();
-	
-	//GetMesh()->SetHiddenInGame(true, true);
-	/*UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), DashEffect, GetActorLocation(), GetActorRotation());
-	//GetCharacterMovement()->Deactivate();*/
-	//CameraDynamicMotion->SetCameraLag(1.f);
-	
-	//GetMesh()->SetHiddenInGame(false, true);
-	//GetMesh()->SetHiddenInGame(true, false);
-	
-	/*
-	WorldCursor->ToggleVisibility(false);
-	
-	//GetCharacterMovement()->Activate();
-	//GetCamera()->SetWorldRotation(UKismetMathLibrary::FindLookAtRotation(GetCamera()->GetComponentLocation(), GetActorLocation()));
-	FVector DashPosition = GetActorLocation() + DashVector * 1000;
-	SetActorLocation(DashPosition, true, nullptr, ETeleportType::TeleportPhysics);
-	UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), DashEffect, GetActorLocation(), GetActorRotation());
-	*/
-
-	//SpringArm->CameraLagMaxDistance = 0.0f;
-	
-}
-
 void AMainCharacter::ToggleWeaponArm() {
+	if (PlayerBaseAbilitiesComponent->IsAnyAbilityPlayingOrCasting()) return;
+	
 	Armed = !Armed;
 	ArmedToggle.Broadcast();
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Armed: %d"), Armed));
 }
 
-/* Iterate through required held key events, rather than using IE_Repeat (laggy, sucks) */
-void AMainCharacter::HeldKeyManager(float DeltaTime) {
-	if (SavedController->IsInputKeyDown(EKeys::LeftShift)) {
-		HeldDash(DeltaTime);
+FRotator AMainCharacter::GetAimRotation() {
+	if (!IsValid(SavedController)) return FRotator::ZeroRotator;
+	
+	if (SavedController->GetHitResultUnderCursorByChannel(TraceChannelAiming, false, HitResultAim)) LastHitLocationAim = HitResultAim.Location;
+	
+	return FRotator(0, (UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), LastHitLocationAim)).Yaw, 0);
+	
+}
+
+void AMainCharacter::WorldCursorUpdate() {
+	if (!IsValid(SavedController)) return;
+	if (!IsValid(WorldCursor)) return;
+	if (!IsValid(PlayerBaseAbilitiesComponent)) return;
+	if (!PlayerBaseAbilitiesComponent->IsAnyAbilityCasting()) return;
+	
+	if (SavedController->GetHitResultUnderCursorByChannel(TraceChannel, true, HitResultCursor)) {
+		LastHitLocationCursor = HitResultCursor.Location;
+		LastHitNormalCursor = HitResultCursor.ImpactNormal;
 	}
+
+	WorldCursor->MoveCursor(HitResultCursor.Location, HitResultCursor.ImpactNormal);
+	WorldCursor->ScaleCursor(PlayerBaseAbilitiesComponent->GetCurrentCastingAbility()->RangeCastSize);
 }
 
 

@@ -13,6 +13,9 @@ UCLASS()
 class COMP3000_API UBTDecorator_GreaterCheck : public UBTDecorator_BlackboardBase
 {
 	GENERATED_BODY()
+
+public:
+	UBTDecorator_GreaterCheck();
 	
 protected:
 	virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const override;

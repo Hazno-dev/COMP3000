@@ -23,6 +23,11 @@ void AWorldCursor::MoveCursor(FVector Location, FVector Normal) {
 	CursorDecal->SetWorldRotation(UKismetMathLibrary::MakeRotFromX(Normal));
 }
 
+void AWorldCursor::ScaleCursor(FVector Scale) {
+	FVector OriginalScale = CursorDecal->GetComponentScale();
+	CursorDecal->SetWorldScale3D(FVector(OriginalScale.X, Scale.Y, Scale.Z));
+}
+
 void AWorldCursor::ToggleVisibility(bool bVisible) {
 	CursorDecal->SetVisibility(bVisible);
 }

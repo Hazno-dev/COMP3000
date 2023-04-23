@@ -17,7 +17,8 @@ public:
 	// Sets default values for this actor's properties
 	ALevelGeneratorV2();
 	
-	virtual void Tick(float DeltaTime) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
 	
 	//Generated Layout
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Layout")
@@ -35,20 +36,23 @@ public:
 	/** Real-World Size Of Tile BPs */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	FVector TilesSize;
-
-	/** Should The Length Be Used */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
-	bool bUseLength;
 	
 	/** How Many Generics Should Be Created (Length Of Dungeon) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data", meta = (EditCondition = "bUseLength"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data", meta = (EditCondition = "Mode == EGeneratorMode::Hybrid || Mode == EGeneratorMode::FullyRandom"))
 	int32 Length;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data", meta = (EditCondition = "Mode == EGeneratorMode::Hybrid || Mode == EGeneratorMode::FullyRandom", ClampMax = 50))
+	int32 StepBackChance;
+
+	/** Is Seed Random */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	bool bIsSeedRandom;
+	
 	/** The Seed of the Dungeon - Use to Generate the Same Dungeon */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generation")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generation", meta = (EditCondition = "!bIsSeedRandom"))
 	int32 Seed;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data", meta = (EditCondition = "Mode == EGeneratorMode::Hybrid || Mode == EGeneratorMode::FullyRandom"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data", meta = (EditCondition = "Mode == EGeneratorMode::Hybrid || Mode == EGeneratorMode::FullyRandom", ClampMin = 2))
 	int32 MaxCorridorsInRow;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data", meta = (EditCondition = "Mode == EGeneratorMode::Hybrid || Mode == EGeneratorMode::Fixed"))
@@ -60,10 +64,21 @@ public:
 	/** Direction To Start */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TEnumAsByte<ECardinalPoints> StartDirection;
-	
-	/** Vectors In Here Won't Be Considered For Generation */
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
-	TArray<FVector2D> OffTiles;
+	bool bOutBranching;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data", meta = (EditCondition = "bOutBranching"))
+	int32 OutBranchingCount;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data", meta = (EditCondition = "bOutBranching", ClampMin = 1))
+	int32 OutBranchingMin;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data", meta = (EditCondition = "bOutBranching", ClampMin = 1))
+	int32 OutBranchingMax;
+	
+	UFUNCTION()
+	void ResetAndRegenerate();
 
 protected:
 	// Called when the game starts or when spawned
@@ -87,10 +102,33 @@ private:
 	void GenerateDungeonFixed();
 
 	UFUNCTION()
+	void GenerateBranches();
+
+	UFUNCTION()
 	void SpawnDungeonTiles();
 
+	UFUNCTION()
+	bool SafetyChecks();
+
+	UFUNCTION()
+	void UpdateOffTilesFromWorldComponents();
+
+	UFUNCTION()
+	void TileLoaded();
+
+	UFUNCTION()
+	void AllTilesLoaded();
+	
 	FRandomStream SeedStream;
 	FVector2D CurrentLocation;
+	TArray<ATileBase*> SpawnedTiles;
+	TArray<FVector2D> OffTiles;
+
+	//Tile loaded count
+	int32 MaxLoadedTilesCount;
+	int32 LoadedTilesCount ;
+	
+	/** Vectors In Here Won't Be Considered For Generation */
 	
 	
 

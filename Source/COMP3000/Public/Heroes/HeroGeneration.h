@@ -3,17 +3,111 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Abilities/AbilityBase.h"
 #include "GameFramework/Actor.h"
+#include "Heroes/Abilities/AbilityData.h"
 #include "HeroGeneration.generated.h"
 
 
+UENUM()
+enum EHeroClasses
+{
+	Elementalist,
+	Striker,
+	Rogue,
+	Paladin
+};
+
 USTRUCT(BlueprintType)
-struct FHeroDataStruct
+struct FHeroStats : public FTableRowBase
 {
 	GENERATED_BODY()
-public:
-	/* Hero Generation Data */
 
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TEnumAsByte<EHeroClasses> HeroClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	int32 HP;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	int32 MaxHP;
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 XP;
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 Level;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	int32 MaxDashCount;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float DashDuration;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TArray<TSubclassOf<class AAbilityBase>> ValidAbilities;
+
+	FHeroStats()
+	{
+		HP = 3;
+		MaxDashCount = 2;
+		HeroClass = Elementalist;
+		DashDuration = 0.15f;
+		XP = 0;
+	}
+
+	
+};
+
+USTRUCT(BlueprintType)
+struct FLevelXP : public FTableRowBase
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	int32 Level;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	int32 XPToNextLevel;
+
+	FLevelXP()
+	{
+		Level = 0;
+		XPToNextLevel = 100;
+	}
+	
+};
+
+UCLASS()
+class COMP3000_API UHeroDataInstance : public UObject
+{
+	GENERATED_BODY()
+
+public:
+    /* Hero Generation Data */
+
+    //Hero Stats
+	UPROPERTY()
+    FHeroStats HeroStats;
+	
+	//Ability Instances
+	UPROPERTY()
+	AAbilityBase* Ability1InstanceOG;
+
+	UPROPERTY()
+	AAbilityBase* Ability2InstanceOG;
+
+	UPROPERTY()
+	AAbilityBase* Ability3InstanceOG;
+
+	UPROPERTY()
+	AAbilityBase* UltimateAbilityInstanceOG;
+	
+	//Mesh Data
 	//Gender Data
 	//True = Male, False = Female
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Generation Data")
@@ -137,7 +231,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Generation Data")
 	int BodyArtColourInt;
+	
 };
+
 UCLASS()
 class COMP3000_API AHeroGeneration : public AActor
 {

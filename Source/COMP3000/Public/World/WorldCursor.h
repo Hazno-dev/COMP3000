@@ -30,6 +30,9 @@ public:
 	void MoveCursor(FVector Location, FVector Normal);
 
 	UFUNCTION()
+	void ScaleCursor(FVector Scale);
+
+	UFUNCTION()
 	void ToggleVisibility(bool bVisible);
 	
 protected:

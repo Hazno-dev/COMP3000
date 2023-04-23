@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "Heroes/Abilities/AbilityData.h"
+#include "World/WorldCursor.h"
 #include "AbilityBase.generated.h"
 
 /**
@@ -16,6 +17,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAbilityCooldownStart);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAbilityCooldownEnd);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAbiltiyStart);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAbilityEnd);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAbilityRefresh);
 UCLASS()
 class COMP3000_API AAbilityBase : public AActor
 {
@@ -57,6 +59,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ACore Functions")
 	virtual void EndCooldown();
 
+	//Casting Functions
+	UFUNCTION(BlueprintCallable, Category = "ACore Functions")
+	void CoreStartCasting();
+
+	UFUNCTION(BlueprintCallable, Category = "ACore Functions")
+	void CoreEndCasting(FVector TargetLocation, FVector TargetNormal);
+
+	UFUNCTION(BlueprintCallable, Category = "ACore Functions")
+	void CoreCancelCasting();
+
 	//Definition Data
 	UPROPERTY()
 	bool bIsAbilityPlaying;
@@ -78,6 +90,27 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
 	float AbilityDuration;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
+	bool bRangeCastAbility;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data", meta = (EditCondition = "bRangeCastAbility"))
+	FVector RangeCastSize;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data", meta = (EditCondition = "bRangeCastAbility"))
+	float RangeCastDistance;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data", meta = (EditCondition = "bRangeCastAbility"))
+	TSubclassOf<AWorldCursor> WorldCursorBP;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data", meta = (EditCondition = "bRangeCastAbility"))
+	bool bIsWorldCursorVisible;
+
+	UPROPERTY()
+	AWorldCursor* SpawnedWorldCursorRef;
+
+	UPROPERTY()
+	bool bIsCasting;
+
 	UFUNCTION(BlueprintCallable, Category = "Ability Data")
 	void SetAbilityRechargeDuration(float Cooldown) { AbilityRechargeDuration = Cooldown; };
 
@@ -92,6 +125,7 @@ public:
 	FAbilityCooldownEnd OnAbilityCooldownEnd;
 	FAbiltiyStart OnAbilityStart;
 	FAbilityEnd OnAbilityEnd;
+	FAbilityRefresh OnAbilityRefreshCharges;
 	
 protected:
 	UPROPERTY()
@@ -107,4 +141,7 @@ protected:
 	float BaseCharacterSpeed;
 
 	float BaseCharacterAcceleration;
+
+	FVector CastLocation;
+	FVector CastNormal;
 };

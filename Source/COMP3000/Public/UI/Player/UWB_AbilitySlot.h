@@ -87,6 +87,15 @@ private:
 
 	void InitMaterial();
 
+	UFUNCTION()
+	void RefreshAbility();
+
+	UFUNCTION()
+	void RefreshAbilityCharges();
+
+	UFUNCTION()
+	void RemoveCallbacks();
+
 	bool bIsCharging = false;
 
 	float ChargeValue = 0.f;

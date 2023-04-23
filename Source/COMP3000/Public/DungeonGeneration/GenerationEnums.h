@@ -86,6 +86,26 @@ struct FTileInfo
 	}
 };
 
+USTRUCT(BlueprintType)
+struct FDungeonPathNode {
+	GENERATED_BODY()
+
+	FVector2D Location;
+	float FScore;
+	float GScore;
+	TSharedPtr<FDungeonPathNode> Parent;
+
+	// Default constructor
+	FDungeonPathNode()
+		: Location(FVector2D::ZeroVector), FScore(0.f), GScore(0.f), Parent(nullptr) {}
+
+	FDungeonPathNode(FVector2D InLocation, float InFScore, float InGScore, TSharedPtr<FDungeonPathNode> InParent)
+		: Location(InLocation), FScore(InFScore), GScore(InGScore), Parent(InParent) {}
+};
+
+
+
+
 class COMP3000_API GenerationEnums
 {
 public:

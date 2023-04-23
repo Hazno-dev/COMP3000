@@ -4,8 +4,10 @@
 #include "PlayerAnimInstance.h"
 
 
+#include "KismetAnimationLibrary.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Heroes/PlayerBaseAbilities.h"
 #include "Kismet/KismetMathLibrary.h"
 
 UPlayerAnimInstance::UPlayerAnimInstance()
@@ -31,6 +33,9 @@ void UPlayerAnimInstance::NativeInitializeAnimation()
 		OwningMovement = OwningCharacter->GetCharacterMovement();
 		OwningCharacter->ArmedToggle.AddDynamic(this, &UPlayerAnimInstance::ArmedToggleMontage);
 		OwningCharacter->FistFire.AddDynamic(this, &UPlayerAnimInstance::FistFireMontage);
+		OwningCharacter->CastingStart.AddDynamic(this, &UPlayerAnimInstance::StartCast);
+		OwningCharacter->CastingFinish.AddDynamic(this, &UPlayerAnimInstance::EndCastMontage);
+		OwningCharacter->CastingCancel.AddDynamic(this, &UPlayerAnimInstance::CancelledCastMontage);
 	}
 }
 
@@ -45,7 +50,7 @@ void UPlayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		GroundSpeed = Velocity.Size();
 		ShouldMove = (GroundSpeed > 0 && OwningMovement->GetCurrentAcceleration() != FVector::ZeroVector) ? true : false;
 		IsFalling = OwningMovement->IsFalling();
-		Direction = CalculateDirection(Velocity, OwningCharacter->PublicRot);
+		Direction = UKismetAnimationLibrary::CalculateDirection(Velocity, OwningCharacter->PublicRot);
 		//GEngine->AddOnScreenDebugMessage(-1, 0.1f, FColor::Red, FString::SanitizeFloat(Direction));
 		IsPunching = OwningCharacter->Punching;
 
@@ -111,10 +116,6 @@ void UPlayerAnimInstance::ArmedToggleMontage() {
 
 void UPlayerAnimInstance::FistFireMontage() {
 	if (!OwningCharacter->Punching) return;
-	OwningCharacter->CanFire = false;
-
-	//gengine firinghand
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, FString::SanitizeFloat(FiringHand));
 
 	if (!FiringHand) {
 		this->Montage_Play(OwningCharacter->Mon_FireFistRight, 1);
@@ -126,6 +127,21 @@ void UPlayerAnimInstance::FistFireMontage() {
 		FiringHand = false;
 		OwningCharacter->SetHandParticlesOnR(true);
 	}
+}
+
+void UPlayerAnimInstance::StartCast() {
+	IsCasting = true;
+	//this->Montage_Play(OwningCharacter->Mon_CastingHold, 1);
+}
+
+void UPlayerAnimInstance::EndCastMontage() {
+	this->Montage_Play(OwningCharacter->Mon_CastingFinish, 1);
+	IsCasting = false;
+}
+
+void UPlayerAnimInstance::CancelledCastMontage() {
+	//this->Montage_Stop(0.2, OwningCharacter->Mon_CastingHold);
+	IsCasting = false;
 }
 
 

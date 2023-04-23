@@ -17,6 +17,9 @@ void UProjectileSpawner::SpawnProjectile(FVector Location, FRotator Rotation) {
 	if (ProjectileClass == nullptr) return;
 	
 	AProjectileBase* SpawnedProjectile = GetWorld()->SpawnActor<AProjectileBase>(ProjectileClass, Location, Rotation, FActorSpawnParameters());
+
+	if (!IsValid(SpawnedProjectile)) return;
+	
 	SpawnedProjectile->ProjectileMovement->Velocity *= ProjectileSpeed;
 	SpawnedProjectile->Damage = Damage;
 	SpawnedProjectile->SetOwner(this->GetOwner());

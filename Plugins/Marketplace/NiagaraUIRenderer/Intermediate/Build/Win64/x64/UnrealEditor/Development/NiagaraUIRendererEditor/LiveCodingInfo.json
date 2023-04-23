@@ -1,0 +1,11 @@
+{
+	"RemapUnityFiles": 
+	{
+		"Module.NiagaraUIRendererEditor.cpp.obj": [
+			"NiagaraUIContentBrowserExtension.cpp.obj",
+			"NiagaraUIRendererEditor.cpp.obj",
+			"NiagaraUIRendererEditorStyle.cpp.obj",
+			"NiagaraWidgetDetailCustomization.cpp.obj"
+		]
+	}
+}

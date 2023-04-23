@@ -53,6 +53,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Player Movement Data")
 	bool IsPunching;
 
+	/** Is Casting */
+	UPROPERTY(BlueprintReadOnly, Category = "Player Movement Data")
+	bool IsCasting;
+
 	//TURN IN PLACE DATA
 	/** Players net Yaw offset  */
 	UPROPERTY(BlueprintReadOnly, Category = "Player Movement Data")
@@ -79,6 +83,15 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Animation")
 	void FistFireMontage();
+
+	UFUNCTION()
+	void StartCast();
+
+	UFUNCTION()
+	void EndCastMontage();
+
+	UFUNCTION()
+	void CancelledCastMontage();
 
 private:
 

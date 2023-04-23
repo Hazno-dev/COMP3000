@@ -11,7 +11,8 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNewStatusEffect);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRevertStatusEffect);
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable)
 class COMP3000_API UEnemyStatusEffectSystem : public UActorComponent
 {
 	GENERATED_BODY()
@@ -37,7 +38,7 @@ public:
 	
 	UFUNCTION(BlueprintCallable)
 	TArray<UStatusEffectBase*> GetCurrentStatusEffects() const { return CurrentStatusEffects; }
-
+	
 	//Status Effect Influence Getters
 	UFUNCTION(BlueprintCallable)
 	float GetMovementSpeedInfluence() const { return MovementSpeedInfluence; }
@@ -50,7 +51,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	float GetCooldownInfluence() const { return CooldownInfluence; }
-
+	
 	FNewStatusEffect EventNewStatusEffect;
 	FRevertStatusEffect EventRevertStatusEffect;
 	
@@ -76,5 +77,7 @@ private:
 
 	//Status Effect Calculation Helpers
 	void CalculateStatusEffectInfluence(UStatusEffectBase* StatusEffectData);
+
+	UStatusEffectBase* IsStatusEffectAlreadyApplied(const UStatusEffectBase* InStatusEffectType);
 		
 };

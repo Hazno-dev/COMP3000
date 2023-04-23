@@ -18,7 +18,7 @@ public:
 	ASplashDamageContainer();
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage")
-	float DamageAmount;
+	float BurstDamageAmount;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage")
 	float Age;
@@ -26,11 +26,35 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage")
 	USphereComponent* DamageSphere;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage")
+	bool bDOT;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (EditCondition = "bDOT"))
+	float DOTDamageAmount;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (EditCondition = "bDOT"))
+	float DOTTickRate;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (EditCondition = "bDOT"))
+	bool bBurstInitialDamageTimed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (EditCondition = "bDOT && bBurstInitialDamageTimed"))
+	float BurstInitialDamageTime;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
 	UNiagaraSystem* NiagaraVFX;
 
 	UFUNCTION()
 	void OnOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	UFUNCTION()
+	void OnOverlapExit(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	UFUNCTION()
+	void DOTDamage();
+	
+	UFUNCTION()
+	void BurstInitialDamageDisable() { bInitialDamageTimeOver = true; }
 	
 	UFUNCTION()
 	void DestroyContainer();
@@ -41,5 +65,13 @@ protected:
 	
 private:
 	FTimerHandle TimerHandle_DestroyAfterAge;
+	FTimerHandle TimerHandle_DOTDamage;
+	FTimerHandle TimerHandle_BurstInitialDamage;
+	bool bInitialDamageTimeOver;
+
+	TSet<AActor*> DamageBurstAppliedActors;
+	TSet<AActor*> OverlappingActors;
 
 };
+
+

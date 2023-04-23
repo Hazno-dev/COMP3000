@@ -13,31 +13,49 @@ UBTTask_MoveToEnhanced::UBTTask_MoveToEnhanced() {
 	NodeName = "Move To Enhanced";
 }
 
-FString UBTTask_MoveToEnhanced::GetStaticDescription() const {
-	return FString::Printf(TEXT("Vector: %s"), *BlackboardKey.SelectedKeyName.ToString());
-}
-
 EBTNodeResult::Type UBTTask_MoveToEnhanced::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) {
 	
-	AAIController* AIController = OwnerComp.GetAIOwner();
+	AIController = OwnerComp.GetAIOwner();
+
+	
 	const APawn* AIPawn = AIController->GetPawn();
 	const FVector Origin = AIPawn->GetActorLocation();
-
-	//get location of object blackboard key
 	
-	
-	FVector Destination;
 	AIController->GetBlackboardComponent()->GetLocationFromEntry(BlackboardKey.SelectedKeyName, Destination);
 	
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Destination: %s"), *Destination.ToString()));
 
-	if (FVector::Dist(Origin, Destination) <= 200.0f) {
-		AIController->StopMovement();
-		FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
-		return EBTNodeResult::Succeeded;
-	}
+	AIController->MoveToLocation(Destination, 1, true, true, true, true);
 
-	AIController->MoveToLocation(Destination);
-	FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
-	return EBTNodeResult::Succeeded;
+	AIController->GetPathFollowingComponent()->OnRequestFinished.AddLambda([this, &OwnerComp](FAIRequestID RequestID, const FPathFollowingResult& Result)
+	{
+		if (Result.IsSuccess())
+		{
+			OwnerComp.OnTaskFinished(Cast<UBTTaskNode>(this), EBTNodeResult::Succeeded);
+		}
+		else
+		{
+			OwnerComp.OnTaskFinished(Cast<UBTTaskNode>(this), EBTNodeResult::Failed);
+		}
+	});
+
+
+	
+	FinishLatentTask(OwnerComp, EBTNodeResult::InProgress);
+	return EBTNodeResult::InProgress;
+}
+
+
+EBTNodeResult::Type UBTTask_MoveToEnhanced::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) {
+
+
+	UE_LOG(LogTemp, Warning, TEXT("Aborting MoveTo"));
+	if (!IsValid(AIController)) return EBTNodeResult::Aborted;
+
+	UE_LOG(LogTemp, Warning, TEXT("Aborting MoveTo"));
+	
+	AIController = OwnerComp.GetAIOwner();
+	AIController->StopMovement();
+
+	return EBTNodeResult::Aborted;
 }

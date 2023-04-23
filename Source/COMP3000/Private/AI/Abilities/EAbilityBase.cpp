@@ -18,6 +18,7 @@ AEAbilityBase::AEAbilityBase()
 	CurrentCharges = MaxCharges;
 	bCanBeInterrupted = true;
 	AbilityType = EAbilityType::Damage;
+	bHitPlayer = false;
 	
 }
 
@@ -54,6 +55,7 @@ void AEAbilityBase::CoreBeginAbility() {
 	if (!bIsAbilityPlaying && CurrentCharges > 0) {
 		bIsAbilityPlaying = true;
 		bIsInterrupted = false;
+		bHitPlayer = false;
 		CurrentCharges--;
 
 		// Call EndAbility function after specified duration has elapsed

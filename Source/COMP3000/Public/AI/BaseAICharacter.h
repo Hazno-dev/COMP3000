@@ -7,7 +7,11 @@
 #include "ProjectileSpawner.h"
 #include "Abilities/EnemyBaseAbilities.h"
 #include "Abilities/EnemyStatusEffectSystem.h"
+#include "PhysicsEngine/PhysicsConstraintComponent.h"
+#include "PhysicsEngine/PhysicsConstraintActor.h"
+#include "Components/BoxComponent.h"
 #include "Components/StateTreeComponent.h"
+#include "EnvironmentQuery/EnvQuery.h"
 #include "GameFramework/Character.h"
 #include "BaseAICharacter.generated.h"
 
@@ -49,10 +53,13 @@ public:
 	UEnemyBaseAbilities* EnemyBaseAbilitiesComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
-	UEnemyStatusEffectSystem* EnemyStatusEffectSystemComponent;
+	TObjectPtr<UEnemyStatusEffectSystem> EnemyStatusEffectSystemComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
 	UWidgetComponent* StatusBar;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
+	UBoxComponent* DetectionBoxFront;
 
 	//Enum States
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State")
@@ -71,23 +78,59 @@ public:
 	float Health;
 	float MaxHealth;
 
+	//Drops
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	int32 XPDeathReward;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drops")
+	TSubclassOf<class AXPOrb> XPOrbClass;
+
+	UFUNCTION()
+	void DeathDrops();
+
+	//Health And Damage Functions
 	UFUNCTION()
 	float GetHealth() const {return Health;};
 
 	UFUNCTION()
 	float GetMaxHealth() const {return MaxHealth;};
 	
-	FHealthChangedEvent HealthChangedEvent;
-	
 	UFUNCTION()
 	void ReceivedDamage(float Damage, AActor* DamageCauser);
-
-	UPROPERTY(BlueprintAssignable)
-	FTookDamageEvent TookDamageEvent;
 
 	UFUNCTION(BlueprintCallable)
 	void DeathDestroy();
 
+	UPROPERTY(BlueprintAssignable)
+	FTookDamageEvent TookDamageEvent;
+	FHealthChangedEvent HealthChangedEvent;
+
+	//Melee Damage Properties
+	UFUNCTION(BlueprintCallable)
+	void MeleeDamageColliderEnabled(float Duration);
+
+	UFUNCTION()
+	void MeleeDamageColliderOnOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	UPROPERTY()
+	bool bDealtMeleeDamage;
+	
+	//Ragdolling Properties
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	bool bImpulseable;
+	
+	UPROPERTY()
+	bool bIsRagdoll;
+	
+	UFUNCTION(BlueprintCallable)
+	void Ragdoll(float Duration);
+
+	UFUNCTION()
+	void UpdateRagdoll();
+
+	UFUNCTION()
+	void RecoverFromRagdoll();
+	
 	UFUNCTION(BlueprintCallable, Category = "Animation")
 	void StopCurrentAnimation();
 	
@@ -97,12 +140,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
 	UAnimMontage* DeathMontage;
 	
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
-	virtual void PostInitializeComponents() override;
-
-public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -118,6 +155,11 @@ public:
 
 	FDetectedEvent DetectedEvent;
 
+protected:
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
+	virtual void PostInitializeComponents() override;
+
 private:
 	// Helper function to predict the rotation of the projectile
 	FRotator PredictProjectileRotation();
@@ -132,5 +174,4 @@ private:
 	bool TryDeathCry();
 
 	ABaseAIController* ControllerRef;
-	
 };

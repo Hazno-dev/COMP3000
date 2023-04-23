@@ -17,10 +17,12 @@ public class COMP3000 : ModuleRules
 			"Niagara", 
 			"UMG", 
 			"EnhancedInput", 
-			"GameplayStateTreeModule"
+			"GameplayStateTreeModule",
+			"NiagaraUIRenderer",
+			"NiagaraUIRendererEditor"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "AIModule", "NavigationSystem", "StateTreeModule"});
+		PrivateDependencyModuleNames.AddRange(new string[] { "AIModule", "NavigationSystem", "StateTreeModule", "AnimGraphRuntime", "PlacementMode"});
 		
 		//GAS
 		PrivateDependencyModuleNames.AddRange(new string[] { "GameplayAbilities", "GameplayTags", "GameplayTasks"});

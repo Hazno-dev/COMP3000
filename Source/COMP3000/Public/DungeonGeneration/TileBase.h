@@ -32,6 +32,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tile Data")
 	FVector2D TileSize;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tile Data")
+	int32 MaxInstances;
 	
 	UPROPERTY()
 	ULevelStreamingDynamic* LevelInstance;
@@ -45,6 +48,15 @@ public:
 
 	UPROPERTY()
 	bool bIsLevelLoaded;
+
+	UFUNCTION()
+	void SetSeedStream(FRandomStream& InSeedStream) { SeedStream = InSeedStream; }
+
+	UFUNCTION()
+	void SpawnPrefabinatorsRandomly();
+
+	UFUNCTION()
+	void SetupDelegate();
 	
 protected:
 	// Called when the game starts or when spawned
@@ -53,6 +65,10 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+private:
+	FRandomStream SeedStream;
+
 
 
 

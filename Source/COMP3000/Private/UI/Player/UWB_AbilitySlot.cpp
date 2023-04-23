@@ -16,8 +16,12 @@ void UUWB_AbilitySlot::NativeConstruct() {
 	Super::NativeConstruct();
 
 	MainCharacterRef = Cast<AMainCharacter>(GetOwningPlayerPawn());
-	if (MainCharacterRef == nullptr) return;
+	if (!IsValid(MainCharacterRef)) return;
+	
+	MainCharacterRef->PlayerBaseAbilitiesComponent->RefreshAbilityIcons.AddDynamic(this, &UUWB_AbilitySlot::RefreshAbility);
+	
 	AbilityRef = MainCharacterRef->PlayerBaseAbilitiesComponent->AbilityFromEnum(AbilitySlotType);
+	
 	InitMaterial();
 	UpdateIcon();
 	DynamicCallbackSetup();
@@ -55,6 +59,30 @@ void UUWB_AbilitySlot::InitMaterial() {
 	AbilityImage->SetBrushFromMaterial(AbilityMaterialInstance);
 }
 
+void UUWB_AbilitySlot::RefreshAbility() {
+	RemoveCallbacks();
+	AbilityRef = MainCharacterRef->PlayerBaseAbilitiesComponent->AbilityFromEnum(AbilitySlotType);
+	InitMaterial();
+	UpdateIcon();
+	DynamicCallbackSetup();
+	SetKeybindText();
+	SetIconCharges();
+}
+
+void UUWB_AbilitySlot::RefreshAbilityCharges() {
+	SetIconCharges();
+}
+
+void UUWB_AbilitySlot::RemoveCallbacks() {
+	if (!IsValid(AbilityRef)) return;
+	
+	AbilityRef->OnAbilityCooldownStart.RemoveDynamic(this, &UUWB_AbilitySlot::BeganCooldown);
+	AbilityRef->OnAbilityCooldownEnd.RemoveDynamic(this, &UUWB_AbilitySlot::EndedCooldown);
+	AbilityRef->OnAbilityStart.RemoveDynamic(this, &UUWB_AbilitySlot::BeganUsing);
+	AbilityRef->OnAbilityEnd.RemoveDynamic(this, &UUWB_AbilitySlot::EndedUsing);
+	AbilityRef->OnAbilityRefreshCharges.RemoveDynamic(this, &UUWB_AbilitySlot::RefreshAbilityCharges);
+}
+
 void UUWB_AbilitySlot::DynamicCallbackSetup() {
 	if (AbilityRef == nullptr) return;
 	
@@ -62,6 +90,7 @@ void UUWB_AbilitySlot::DynamicCallbackSetup() {
 	AbilityRef->OnAbilityCooldownEnd.AddDynamic(this, &UUWB_AbilitySlot::EndedCooldown);
 	AbilityRef->OnAbilityStart.AddDynamic(this, &UUWB_AbilitySlot::BeganUsing);
 	AbilityRef->OnAbilityEnd.AddDynamic(this, &UUWB_AbilitySlot::EndedUsing);
+	AbilityRef->OnAbilityRefreshCharges.AddDynamic(this, &UUWB_AbilitySlot::RefreshAbilityCharges);
 }
 
 void UUWB_AbilitySlot::SetKeybindText() {
@@ -112,6 +141,9 @@ void UUWB_AbilitySlot::UpdateIcon() {
 }
 
 void UUWB_AbilitySlot::BeganCooldown() {
+	if (!IsValid(MainCharacterRef)) return;
+	if (!IsValid(AbilityRef)) return;
+	
 	ChargeValue = 0;
 	bIsCharging = true;
 	TargetValue = AbilityRef->AbilityRechargeDuration;

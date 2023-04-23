@@ -15,7 +15,8 @@ class COMP3000_API UTraceHelpers : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 	
 public:
+	//Raycasters
 	UFUNCTION(BlueprintCallable, Category = "Trace")
 	static FVector TraceGroundLocation(AActor* Actor, float ZOffset, float TraceDistance);
-
+	
 };

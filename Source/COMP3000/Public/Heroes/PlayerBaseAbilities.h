@@ -10,6 +10,8 @@
 #include "PlayerBaseAbilities.generated.h"
 
 class AMainCharacter;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRefreshAbilityIcons);
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class COMP3000_API UPlayerBaseAbilities : public UActorComponent
 {
@@ -22,17 +24,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
 	TSubclassOf<AAbilityBase> DashClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability 1")
-	TSubclassOf<AAbilityBase> Ability1Class;
+	UPROPERTY()
+	AAbilityBase* DashAbilityInstance;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability 2")
-	TSubclassOf<AAbilityBase> Ability2Class;
+	UPROPERTY()
+	AAbilityBase* Ability1Instance;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability 3")
-	TSubclassOf<AAbilityBase> Ability3Class;
+	UPROPERTY()
+	AAbilityBase* Ability2Instance;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability 4")
-	TSubclassOf<AAbilityBase> UltimateClass;
+	UPROPERTY()
+	AAbilityBase* Ability3Instance;
+
+	UPROPERTY()
+	AAbilityBase* UltimateAbilityInstance;
 
 protected:
 	// Called when the game starts
@@ -44,12 +49,6 @@ public:
 
 	UFUNCTION()
 	void StartDash();
-
-	UFUNCTION()
-	void HeldDash();
-
-	UFUNCTION()
-	void EndDash();
 
 	UFUNCTION()
 	void StartAbility1();
@@ -65,6 +64,41 @@ public:
 
 	UFUNCTION()
 	AAbilityBase* AbilityFromEnum(const EAbilitySlotType AbilitySlotType) const;
+
+	UFUNCTION()
+	void SetDashMaxCharges(const int32 NewCharges);
+
+	UFUNCTION()
+	void SetDashDuration(const float NewDuration);
+
+	UFUNCTION()
+	void SetAbility1Instance(AAbilityBase* NewAbility);
+
+	UFUNCTION()
+	void SetAbility2Instance(AAbilityBase* NewAbility);
+
+	UFUNCTION()
+	void SetAbility3Instance(AAbilityBase* NewAbility);
+
+	UFUNCTION()
+	void SetUltimateAbilityInstance(AAbilityBase* NewAbility);
+
+	UFUNCTION()
+	void CastTriggerAnyAbility();
+
+	UFUNCTION()
+	void CastCancelAnyAbility();
+
+	UFUNCTION(BlueprintCallable)
+	bool IsAnyAbilityPlayingOrCasting(bool bIgnoreCastingPlaying = true) const;
+
+	UFUNCTION(BlueprintCallable)
+	bool IsAnyAbilityCasting() const;
+
+	UFUNCTION()
+	AAbilityBase* GetCurrentCastingAbility() const;
+
+	FRefreshAbilityIcons RefreshAbilityIcons;
 
 private:
 

@@ -27,6 +27,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Enemy Movement Data")
 	EAIState AIState;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Enemy Movement Data")
+	TEnumAsByte<EStatusEffect> AnimStatusEffect;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Enemy Reference")
 	ABaseAICharacter* BaseOwningCharacter;
 

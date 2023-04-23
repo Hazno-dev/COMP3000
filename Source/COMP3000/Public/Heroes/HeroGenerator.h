@@ -19,12 +19,22 @@ public:
 	// Sets default values for this component's properties
 	UHeroGenerator();
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh Components")
-	USkeletalMeshComponent* TesterMesh;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hero Stats")
+	UDataTable* HeroStatsDataTable;
+
+	/*UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Heroes")
+	TArray<FHeroDataStruct> HeroDataArray;*/
+
+	//Generation Functions	
+	UFUNCTION(BlueprintCallable, Category = "Generation Functions")
+	TArray<UHeroDataInstance*> GenerateHero();
 
 	//Mesh Public Functions
 	UFUNCTION(BlueprintCallable, Category = "Generation Functions")
 	void SetMeshesHidden(bool bIsHidden);
+
+	UFUNCTION(BlueprintCallable, Category = "Generation Functions")
+	void SetMeshes(UHeroDataInstance* InHero);
 	
 protected:
 	// Called when the game starts
@@ -33,13 +43,6 @@ protected:
 public:	
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
-	bool GenerateHeroMesh(UPARAM(ref) USkeletalMesh& PlayerMesh, UPARAM(ref) TArray<USkeletalMesh*>& MeshesToMerge);
-
-	TArray<USkeletalMesh*> HeroMeshes;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Heroes")
-	TArray<FHeroDataStruct> HeroDataArray;
 
 	//Mesh Components
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
@@ -310,6 +313,8 @@ private:
 	AMainCharacter* MainCharacterRef;
 	USkeletalMeshComponent* GetMesh() const {return MainCharacterRef->GetMesh();};
 
+	TArray<FHeroStats*> DataTableStatsRef;
+
 	//Mesh Material
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
@@ -321,17 +326,15 @@ private:
 	void SetupMeshAttachments();
 
 	UFUNCTION(BlueprintCallable, Category = "Generation Functions")
-	void GenerateHero(UPARAM(ref) FHeroDataStruct& InHero);
+	void GenerateHeroMeshes(UPARAM(ref) UHeroDataInstance* InHero);
 
 	UFUNCTION(BlueprintCallable, Category = "Generation Functions")
 	void SetMaterials();
 
 	UFUNCTION(BlueprintCallable, Category = "Generation Functions")
-	void SetMaterialParameters(FHeroDataStruct InHero);
-
-	UFUNCTION(BlueprintCallable, Category = "Generation Functions")
-	void SetMeshes(FHeroDataStruct InHero);
+	void SetMaterialParameters(UPARAM(ref)UHeroDataInstance* InHero);
 
 	void SetupAttachmentRuntime();
 };
+
 

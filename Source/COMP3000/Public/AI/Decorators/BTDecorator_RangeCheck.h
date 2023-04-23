@@ -14,6 +14,8 @@ class COMP3000_API UBTDecorator_RangeCheck : public UBTDecorator_BlackboardBase
 {
 	GENERATED_BODY()
 
+public:
+	UBTDecorator_RangeCheck();
 	
 protected:
 	virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const override;

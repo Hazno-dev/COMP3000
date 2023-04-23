@@ -3,6 +3,7 @@
 
 #include "AI/ProjectileBase.h"
 
+#include "MainCharacter.h"
 #include "AI/BaseAICharacter.h"
 #include "Kismet/KismetMathLibrary.h"
 
@@ -28,8 +29,9 @@ void AProjectileBase::BeginPlay()
 	Super::BeginPlay();
 	
 	//spawn system at location
-	if (MuzzleVFX != nullptr) UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), MuzzleVFX, GetActorLocation(), GetActorRotation());
+	if (IsValid(MuzzleVFX)) UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), MuzzleVFX, GetActorLocation(), GetActorRotation());
 	CollisionSphere->OnComponentHit.AddDynamic(this, &AProjectileBase::OnHit);
+	CollisionSphere->OnComponentBeginOverlap.AddDynamic(this, &AProjectileBase::OnOverlap);
 }
 
 // Called every frame
@@ -43,13 +45,28 @@ void AProjectileBase::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActo
 	FVector NormalImpulse, const FHitResult& Hit) {
 
  	FRotator Rotation = UKismetMathLibrary::MakeRotFromX(Hit.ImpactNormal);
-	UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), HitVFX, Hit.Location, Rotation);
+	if (IsValid(HitVFX)) UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), HitVFX, Hit.Location, Rotation);
+}
 
-	if (ABaseAICharacter* AI = Cast<ABaseAICharacter>(OtherActor)) {
-		AI->ReceivedDamage(Damage, this->GetOwner());
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Hit AI")));
+void AProjectileBase::OnOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult) {
+	
+	FRotator Rotation = UKismetMathLibrary::MakeRotFromX(SweepResult.ImpactNormal);
+	if (IsValid(HitVFX)) UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), HitVFX, SweepResult.Location, Rotation);
+
+	if (Damage > 0) {
+		if (ABaseAICharacter* AI = Cast<ABaseAICharacter>(OtherActor)) {
+			AI->ReceivedDamage(Damage, this->GetOwner());
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Hit AI")));
+		}
+	}
+
+	if (AMainCharacter* MainCharacterRef = Cast<AMainCharacter>(OtherActor)) {
+		MainCharacterRef->TookDamage();
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Hit Player")));
 	}
 	
 	this->Destroy();
 }
+
 

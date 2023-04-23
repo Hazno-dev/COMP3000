@@ -12,18 +12,23 @@
 #include "Components/PointLightComponent.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
+#include "Heroes/HeroManagerComponent.h"
 #include "World/WorldCursor.h"
 
 
 #include "MainCharacter.generated.h"
 
 
+class UPlayerAnimInstance;
 class UCameraDynamicMotion;
 class UPlayerBaseAbilities;
 class UHeroGenerator;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FArmedToggle);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFistFire);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FCastingStart);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FCastingEnd);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FCastingCancel);
 UCLASS()
 class COMP3000_API AMainCharacter : public ACharacter
 {
@@ -64,6 +69,10 @@ public:
 	/** Hero Generator */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hero Generation")
 	UHeroGenerator* HeroGeneratorComponent;
+
+	/** Hero Manager */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hero Generation")
+	UHeroManagerComponent* HeroManagerComponent;
 
 	/** AISource */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI", meta = (AllowPrivateAccess = "true"))
@@ -127,8 +136,21 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Actions")
 	UInputAction* UltimateAction;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Actions")
+	UInputAction* SwapHeroAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Actions")
+	UInputAction* CastAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Actions")
+	UInputAction* CancelCastAction;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Mappings")
 	UInputMappingContext* BaseInputMappingContext;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Mappings")
+	UInputMappingContext* AOEInputMappingContext;
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Mappings")
 	int32 BaseMappingPriority = 0;
 
@@ -152,8 +174,7 @@ public:
 	/** Character holding punch */
 	UPROPERTY(BlueprintReadOnly, Category = "PlayerController")
 	bool Punching = false;
-	UPROPERTY(BlueprintReadWrite, Category = "PlayerController")
-	bool CanFire = true;
+	float FireTimer = 0.0f;
 
 	/** Character Armed */
 	UPROPERTY(BlueprintReadOnly, Category = "PlayerController")
@@ -164,13 +185,11 @@ public:
 	FRotator PublicRot = FRotator(0,0,0);
 
 	//PUBLIC PLAYER STATS
-	/** Players Health */
-	UPROPERTY(EditAnywhere, Category = "PlayerStats")
-	int PlayerHealth;
+	UFUNCTION()
+	void TookDamage() const { HeroManagerComponent->TookDamage(); };
 
-	//Heroes
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Heroes")
-	TArray<FHeroDataStruct> HeroDataArray;
+	UFUNCTION()
+	void GainXP(const int32 XP) const { HeroManagerComponent->AddXP(XP); };
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara")
 	UNiagaraSystem* DashEffect;
@@ -211,9 +230,25 @@ public:
 	/** Fire Fist Montage Right */
 	UPROPERTY(EditAnywhere, Category = "Animations")
 	UAnimMontage* Mon_FireFistRight;
+
+	/** Casting Hold */
+	UPROPERTY(EditAnywhere, Category = "Animations")
+	UAnimMontage* Mon_CastingHold;
+
+	/** Casting Finish */
+	UPROPERTY(EditAnywhere, Category = "Animations")
+	UAnimMontage* Mon_CastingFinish;
 	
 	FFistFire FistFire;
-	
+	FCastingStart CastingStart;
+	FCastingEnd CastingFinish;
+	FCastingCancel CastingCancel;
+
+	/** Hitpoint for World Cursor*/
+	FHitResult HitResultCursor;
+	FVector LastHitLocationCursor;
+	FVector_NetQuantizeNormal LastHitNormalCursor;
+
 	
 protected:
 
@@ -229,17 +264,10 @@ protected:
 	void EnhancedMove(const FInputActionValue& Value);
 
 	/** Start punching */
-	void Punch();
+	void Punch(const FInputActionInstance& ActionInstance);
 
 	/** Stop punching */
 	void StopPunch();
-
-	/* Dash */
-	void StartDash();
-
-	void HeldDash(float DeltaTime);
-
-	void EndDash();
 
 	/* Weapon Arm Toggle */
 	void ToggleWeaponArm();
@@ -250,25 +278,17 @@ private:
 	ETraceTypeQuery TraceChannel;
 	
 	/** Hitpoint for Mouse Aiming */
-	FHitResult HitResult;
+	FHitResult HitResultAim;
+	FVector LastHitLocationAim;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AimTraceChannel", meta = (AllowPrivateAccess = "true"))
+	TEnumAsByte<ETraceTypeQuery> TraceChannelAiming;
 
 	UFUNCTION()
-	void HeldKeyManager(float DeltaTime);
+	FRotator GetAimRotation();
 
-	/*UFUNCTION(BlueprintCallable, Category = "Generation Functions")
-	void SetupMeshes();
-	
-	UFUNCTION(BlueprintCallable, Category = "Generation Functions")
-	void GenerateHero(UPARAM(ref) FHeroDataStruct& InHero);
-
-	UFUNCTION(BlueprintCallable, Category = "Generation Functions")
-	void SetMaterials();
-
-	UFUNCTION(BlueprintCallable, Category = "Generation Functions")
-	void SetMaterialParameters(FHeroDataStruct InHero);
-
-	UFUNCTION(BlueprintCallable, Category = "Generation Functions")
-	void SetMeshes(FHeroDataStruct InHero);*/
+	UFUNCTION()
+	void WorldCursorUpdate();
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;

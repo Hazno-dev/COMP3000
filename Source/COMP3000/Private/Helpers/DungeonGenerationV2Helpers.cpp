@@ -3,8 +3,11 @@
 
 #include "Helpers/DungeonGenerationV2Helpers.h"
 
+#include "Components/BoxComponent.h"
+#include "DungeonGeneration/OffTileArea.h"
+
 FVector2D UDungeonGenerationV2Helpers::FindNextLocationRandom(TMap<FVector2D, FTileInfo>& TileLayout,
-	FVector2D CurrentLocation, FRandomStream& Seed, int32 MaxCorridorsInRow, FVector2D TargetLocation, float MinDistanceFromTarget) {
+	FVector2D& CurrentLocation, FRandomStream& Seed, int32 MaxCorridorsInRow, FVector2D TargetLocation, float MinDistanceFromTarget, bool bUseFisherYates) {
 
 	// Find valid locations and directions
 	TArray<FVector2D> ValidLocations;
@@ -22,14 +25,24 @@ FVector2D UDungeonGenerationV2Helpers::FindNextLocationRandom(TMap<FVector2D, FT
 		}
 	}
 
-	// Shuffle the valid locations and directions using Fisher-Yates shuffle
-	for (int32 i = ValidLocations.Num() - 1; i > 0; --i) {
-		int32 j = Seed.RandRange(0, i);
-		ValidLocations.Swap(i, j);
-		ValidDirections.Swap(i, j);
+	if (bUseFisherYates) {
+		// Shuffle the valid locations and directions using Fisher-Yates shuffle
+		for (int32 i = ValidLocations.Num() - 1; i > 0; --i) {
+			int32 j = Seed.RandRange(0, i);
+			ValidLocations.Swap(i, j);
+			ValidDirections.Swap(i, j);
+		}
+	} else {
+		// Sort the valid locations based on the sum of distances to neighboring tiles
+		ValidLocations.Sort([&](const FVector2D& A, const FVector2D& B) {
+			//Small amount of noise to prevent all tiles just being sorted by distance
+			float RandomFactorA = Seed.FRandRange(0.0f, 2.0f);
+			float RandomFactorB = Seed.FRandRange(0.0f, 2.0f);
+			return (CalculateNeighboringTilesDistanceSum(TileLayout, A) + RandomFactorA) < (CalculateNeighboringTilesDistanceSum(TileLayout, B) + RandomFactorB);
+		});
 	}
 
-	// Iterate over shuffled valid locations
+	// Iterate over shuffled or sorted valid locations
 	for (int32 i = 0; i < ValidLocations.Num(); ++i) {
 		FVector2D SelectedLocation = ValidLocations[i];
 
@@ -39,16 +52,14 @@ FVector2D UDungeonGenerationV2Helpers::FindNextLocationRandom(TMap<FVector2D, FT
 		}
 	}
 
-	// If no valid location is found, use the Backtrack helper function
-	return BacktrackerRandom(TileLayout, CurrentLocation, Seed);
+	// If no valid location is found
+	return FVector2D(0, 0);
 }
 
-FVector2D UDungeonGenerationV2Helpers::FindNextLocationTargeted(TMap<FVector2D, FTileInfo>& TileLayout,
-	FVector2D CurrentLocation, FVector2D TargetLocation, FRandomStream& Seed) {
-	return FVector2D::ZeroVector;
-}
 
-FVector2D UDungeonGenerationV2Helpers::FindNextLocationSpecified(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D CurrentLocation, ECardinalPoints Direction) {
+
+
+FVector2D UDungeonGenerationV2Helpers::FindNextLocationSpecified(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D& CurrentLocation, ECardinalPoints Direction) {
 	FVector2D NextLocation = CurrentLocation + CardinalPointToFVector2D(Direction);
 
 	// Check if the next location is not occupied
@@ -61,25 +72,50 @@ FVector2D UDungeonGenerationV2Helpers::FindNextLocationSpecified(TMap<FVector2D,
 }
 
 
-FVector2D UDungeonGenerationV2Helpers::BacktrackerRandom(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D CurrentLocation, FRandomStream& Seed) {
-	TArray<FVector2D> TileLocations;
-	TileLayout.GenerateKeyArray(TileLocations);
+FVector2D UDungeonGenerationV2Helpers::BacktrackerRandom(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D& CurrentLocation, FRandomStream& Seed,
+	int32 MaxCorridorsInRow, FVector2D TargetLocation, float MinDistanceFromTarget) {
 
-	int counter = TileLocations.Num() - 1;
-	FVector2D returnVec = CurrentLocation;
+	//if (TileLayout.Find(CurrentLocation)->Type == StartTile) return CurrentLocation;
 	
-	for (counter; counter > 1; counter--) {
-		returnVec = TileLocations[counter];
-		FVector2D NextLocation = FindNextLocationRandom(TileLayout, returnVec, Seed);
+	TArray<FVector2D> TileLocations = GetTileLayoutWithoutOffTiles(TileLayout);
+	int counter = GetTileCountWithoutOffTiles(TileLayout) - 1;
+	bool foundValidLocation = false;
+
+	while (counter > 0 && !foundValidLocation) {
+		CurrentLocation = TileLocations[counter];
+		
+		FVector2D NextLocation = FindNextLocationRandom(TileLayout, CurrentLocation, Seed, MaxCorridorsInRow, TargetLocation, MinDistanceFromTarget);
 
 		// If the next location is not the current location, we have found a valid location.
-		if (returnVec != NextLocation) {
+		if (CurrentLocation != NextLocation && NextLocation != FVector2D(0, 0)) {
+			foundValidLocation = true;
 			return NextLocation;
 		}
+		counter--;
 	}
 
 	return CurrentLocation;
 }
+
+void UDungeonGenerationV2Helpers::BranchOutRandomPaths(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D& CurrentLocation, FRandomStream& Seed,
+	int32 MaxCorridorsInRow, int32 BranchLength) {
+	
+	for (int32 j = 0; j < BranchLength; ++j) {
+		FVector2D NextLocation = FindNextLocationRandom(TileLayout, CurrentLocation, Seed, MaxCorridorsInRow, FVector2D::ZeroVector, 0, false);
+
+		if (NextLocation != CurrentLocation && NextLocation != FVector2D(0, 0)) {
+			FTileInfo NewTileInfo;
+			NewTileInfo.Type = GenericTile;
+			TileLayout.Add(NextLocation, NewTileInfo);
+			
+			UpdateTileDirections(TileLayout, CurrentLocation, NextLocation);
+			CurrentLocation = NextLocation;
+		} else {
+			break;
+		}
+	}
+}
+
 
 TArray<UClass*> UDungeonGenerationV2Helpers::FindMatchingTileClasses(const FTileInfo& TileInfo, TArray<UClass*>& SpawnableTiles) {
 	TArray<UClass*> MatchingTileClasses;
@@ -87,15 +123,13 @@ TArray<UClass*> UDungeonGenerationV2Helpers::FindMatchingTileClasses(const FTile
 		ATileBase* TileBase = Cast<ATileBase>(TileClass->GetDefaultObject());
 
 		if (!TileBase) {
-			UE_LOG(LogTemp, Warning, TEXT("Tile class does not inherit from ATileBase. Skipping."));
 			continue;
 		}
 
 		if (DoTileInfoAndTileBaseMatch(TileInfo, TileBase)) {
 			MatchingTileClasses.Add(TileClass);
-		} else {
-			UE_LOG(LogTemp, Warning, TEXT("Tile info and tile base do not match for class: %s"), *TileClass->GetName());
-		}
+		} 
+		
 	}
 	return MatchingTileClasses;
 }
@@ -104,7 +138,6 @@ TArray<UClass*> UDungeonGenerationV2Helpers::FindMatchingTileClasses(const FTile
 bool UDungeonGenerationV2Helpers::DoTileInfoAndTileBaseMatch(const FTileInfo& TileInfo, const ATileBase* TileBase) {
 	// Check if the TileType matches
 	if (TileInfo.Type != TileBase->TileType) {
-		UE_LOG(LogTemp, Warning, TEXT("Tile type does not match"));
 		return false;
 	}
 
@@ -142,36 +175,32 @@ FRotator UDungeonGenerationV2Helpers::GetTileRotation(const FTileInfo& TileInfo,
 		TArray<bool> CurrentTileMapDirections;
 		TileInfo.Directions.GenerateValueArray(CurrentTileMapDirections);
 
-		switch (TileBase->ConnectionType) {
-		case Threeway:
-			// Handle Threeway rotation logic
-			if (CurrentTileMapDirections[0] && CurrentTileMapDirections[1] && CurrentTileMapDirections[3] && !CurrentTileMapDirections[2]) Yaw = 0.0f;
-			else if (CurrentTileMapDirections[0] && CurrentTileMapDirections[1] && CurrentTileMapDirections[2] && !CurrentTileMapDirections[3]) Yaw = 90.0f;
-			else if (CurrentTileMapDirections[1] && CurrentTileMapDirections[2] && CurrentTileMapDirections[3] && !CurrentTileMapDirections[0]) Yaw = 180.0f;
-			else if (CurrentTileMapDirections[0] && CurrentTileMapDirections[2] && CurrentTileMapDirections[3] && !CurrentTileMapDirections[1]) Yaw = 270.0f;
-			break;
-		case Fourway:
-			// Handle Fourway rotation logic (no rotation required)
-			break;
-		case Line:
-			// Handle Line rotation logic
-			if (CurrentTileMapDirections[0] && CurrentTileMapDirections[2] && !CurrentTileMapDirections[1] && !CurrentTileMapDirections[3]) Yaw = 0.0f;
-			else if (CurrentTileMapDirections[1] && CurrentTileMapDirections[3] && !CurrentTileMapDirections[0] && !CurrentTileMapDirections[2]) Yaw = 90.0f;
-			break;
-		case Single:
-			// Handle Single rotation logic
-			if (CurrentTileMapDirections[0] && !CurrentTileMapDirections[1] && !CurrentTileMapDirections[2] && !CurrentTileMapDirections[3]) Yaw = 0.0f;
-			else if (CurrentTileMapDirections[1] && !CurrentTileMapDirections[0] && !CurrentTileMapDirections[2] && !CurrentTileMapDirections[3]) Yaw = 90.0f;
-			else if (CurrentTileMapDirections[2] && !CurrentTileMapDirections[0] && !CurrentTileMapDirections[1] && !CurrentTileMapDirections[3]) Yaw = 180.0f;
-			else if (CurrentTileMapDirections[3] && !CurrentTileMapDirections[0] && !CurrentTileMapDirections[1] && !CurrentTileMapDirections[2]) Yaw = 270.0f;
-			break;
-		case Corner:
-			// Fallback to cardinal directions (also handles Corner case)
-			if (CurrentTileMapDirections[0] && CurrentTileMapDirections[1] && !CurrentTileMapDirections[2] && !CurrentTileMapDirections[3]) Yaw = 0;
-			if (CurrentTileMapDirections[1] && CurrentTileMapDirections[2] && !CurrentTileMapDirections[0] && !CurrentTileMapDirections[3]) Yaw = 90;
-			if (CurrentTileMapDirections[2] && CurrentTileMapDirections[3] && !CurrentTileMapDirections[1] && !CurrentTileMapDirections[0]) Yaw = 180;
-			if (CurrentTileMapDirections[3] && CurrentTileMapDirections[0] && !CurrentTileMapDirections[2] && !CurrentTileMapDirections[1]) Yaw = 270;
-		}
+		//Fourway
+		if (CurrentTileMapDirections[0] && CurrentTileMapDirections[1] && CurrentTileMapDirections[2] && CurrentTileMapDirections[3]) Yaw = 0;
+
+		//Threeway
+		if (CurrentTileMapDirections[0] && CurrentTileMapDirections[1] && CurrentTileMapDirections[3] && !CurrentTileMapDirections[2]) Yaw =  0;
+		if (CurrentTileMapDirections[0] && CurrentTileMapDirections[1] && CurrentTileMapDirections[2] && !CurrentTileMapDirections[3]) Yaw =  90;
+		if (CurrentTileMapDirections[1] && CurrentTileMapDirections[2] && CurrentTileMapDirections[3] && !CurrentTileMapDirections[0]) Yaw =  180;
+		if (CurrentTileMapDirections[0] && CurrentTileMapDirections[2] && CurrentTileMapDirections[3] && !CurrentTileMapDirections[1]) Yaw =  270;
+		
+		//Corner
+		if (CurrentTileMapDirections[0] && CurrentTileMapDirections[1] && !CurrentTileMapDirections[2] && !CurrentTileMapDirections[3]) Yaw =  0;
+		if (CurrentTileMapDirections[1] && CurrentTileMapDirections[2] && !CurrentTileMapDirections[0] && !CurrentTileMapDirections[3]) Yaw =  90;
+		if (CurrentTileMapDirections[2] && CurrentTileMapDirections[3] && !CurrentTileMapDirections[1] && !CurrentTileMapDirections[0]) Yaw =  180;
+		if (CurrentTileMapDirections[3] && CurrentTileMapDirections[0] && !CurrentTileMapDirections[2] && !CurrentTileMapDirections[1]) Yaw =  270;
+
+		//Line
+		if (CurrentTileMapDirections[0] && CurrentTileMapDirections[2] && !CurrentTileMapDirections[1] && !CurrentTileMapDirections[3]) Yaw =  0;
+		if (CurrentTileMapDirections[1] && CurrentTileMapDirections[3] && !CurrentTileMapDirections[0] && !CurrentTileMapDirections[2]) Yaw =  90;
+
+		//Single
+
+		if (CurrentTileMapDirections[0] && !CurrentTileMapDirections[1] && !CurrentTileMapDirections[2] && !CurrentTileMapDirections[3]) Yaw =  0;
+		if (CurrentTileMapDirections[1] && !CurrentTileMapDirections[0] && !CurrentTileMapDirections[2] && !CurrentTileMapDirections[3]) Yaw =  90;
+		if (CurrentTileMapDirections[2] && !CurrentTileMapDirections[0] && !CurrentTileMapDirections[1] && !CurrentTileMapDirections[3]) Yaw =  180;
+		if (CurrentTileMapDirections[3] && !CurrentTileMapDirections[0] && !CurrentTileMapDirections[1] && !CurrentTileMapDirections[2]) Yaw =  270;
+		
 	}
 	return FRotator(0.0f, Yaw, 0.0f);
 }
@@ -192,9 +221,10 @@ bool UDungeonGenerationV2Helpers::IsNextLocationCorridor(const TMap<FVector2D, F
 		FVector2D AdjacentLocation = NextLocation + Direction;
 		FTileInfo AdjacentTileInfo = TileLayout.FindRef(AdjacentLocation);
 
-		// If the tile is a starting tile, ignore it
-		if (AdjacentTileInfo.Type == ETileType::StartTile) continue;
-
+		// If the tile is a starting/off tile, ignore it
+		if (AdjacentTileInfo.Type == StartTile || AdjacentTileInfo.Type == OffTile) continue;
+		
+		
 		// If the adjacent tile is connected in the direction of the current tile, increment the corridor count
 		FVector2D ReverseDirection = -Direction;
 		ECardinalPoints ReverseCardinalPoint = FVector2DToCardinalPoint(ReverseDirection);
@@ -209,6 +239,107 @@ bool UDungeonGenerationV2Helpers::IsNextLocationCorridor(const TMap<FVector2D, F
 	// If the corridor count is less than the maximum allowed, return false (it's not a corridor)
 	return false;
 }
+
+float UDungeonGenerationV2Helpers::CalculateNeighboringTilesDistanceSum(const TMap<FVector2D, FTileInfo>& TileLayout, const FVector2D& Location) {
+	float DistanceSum = 0;
+
+	for (int32 i = 0; i < 4; ++i) {
+		FVector2D Direction = CardinalDirections[i];
+		FVector2D NeighborLocation = Location + Direction;
+
+		if (TileLayout.Contains(NeighborLocation)) {
+			DistanceSum += FVector2D::Distance(Location, NeighborLocation);
+		}
+	}
+
+	return DistanceSum;
+}
+
+TArray<FVector2D> UDungeonGenerationV2Helpers::UpdateOffTilesFromWorldComponents(TArray<AActor*> OffTileAreaActors, FVector TilesSize, FVector LevelGeneratorPosition) {
+    TArray<FVector2D> OffTiles = TArray<FVector2D>();
+
+    // Loop through all the actors in OffTileAreaActors array
+    for (AActor* Actor : OffTileAreaActors) {
+    	
+        AOffTileArea* OffTileArea = Cast<AOffTileArea>(Actor);
+        if (OffTileArea) {
+            // Calculate the position of the OffTileArea actor relative to the LevelGenerator
+            FVector RelativePosition = OffTileArea->GetActorLocation() - LevelGeneratorPosition;
+            UBoxComponent* BoxComponent = OffTileArea->GetBoxComponent();
+
+            // Check if the BoxComponent exists
+            if (BoxComponent) {
+                // Calculate the number of tiles in both X and Y dimensions based on the BoxComponent size
+                FVector BoxExtent = BoxComponent->GetScaledBoxExtent();
+                FIntPoint TileCount(FMath::RoundToInt(BoxExtent.X * 2 / TilesSize.X), FMath::RoundToInt(BoxExtent.Y * 2 / TilesSize.Y));
+
+                // Skip if the box size is too small
+                if (TileCount.X <= 0 || TileCount.Y <= 0) {
+                    continue;
+                }
+
+                // Calculate the offset for the TileWorldPosition to ensure proper rounding
+                FVector TileOffset(TilesSize.X / 2, TilesSize.Y / 2, 0);
+
+                // Iterate through the tiles in both X and Y dimensions
+                for (int32 i = 0; i < TileCount.X; ++i) {
+                    for (int32 j = 0; j < TileCount.Y; ++j) {
+                        // Calculate the world position of the tile based on the RelativePosition, TilesSize, and TileOffset
+                        FVector TileWorldPosition = RelativePosition + FVector(i * TilesSize.X, j * TilesSize.Y, 0) - TileOffset;
+                        // Convert the TileWorldPosition into a FVector2D tile location by dividing by TilesSize and rounding to the nearest integer
+                        FVector2D TileLocation(FMath::RoundToInt((TileWorldPosition.X + TilesSize.X / 2) / TilesSize.X), FMath::RoundToInt((TileWorldPosition.Y + TilesSize.Y / 2) / TilesSize.Y));
+
+                        // Add the calculated tile location to the OffTiles array
+                        OffTiles.Add(TileLocation);
+                    }
+                }
+            }
+        }
+    }
+
+    // Return the TArray of FVector2D OffTiles
+    return OffTiles;
+}
+
+
+
+
+
+
+int32 UDungeonGenerationV2Helpers::GetTileCountWithoutOffTiles(TMap<FVector2D, FTileInfo>& TileLayout) {
+	int32 TileCount = 0;
+	for (const auto& Tile : TileLayout) {
+		if (Tile.Value.Type != ETileType::OffTile) {
+			TileCount++;
+		}
+	}
+	return TileCount;
+}
+
+TArray<FVector2D> UDungeonGenerationV2Helpers::GetTileLayoutWithoutOffTiles(TMap<FVector2D, FTileInfo>& TileLayout, bool bIncludeStartTile) {
+	TArray<FVector2D> TileLayoutWithoutOffTiles;
+	TileLayout.GenerateKeyArray(TileLayoutWithoutOffTiles);
+	
+	for (int32 i = TileLayoutWithoutOffTiles.Num() - 1; i >= 0; ) {
+		bool bElementRemoved = false;
+
+		if (TileLayout[TileLayoutWithoutOffTiles[i]].Type == ETileType::OffTile) {
+			TileLayoutWithoutOffTiles.RemoveAt(i);
+			bElementRemoved = true;
+		}
+		else if (TileLayout[TileLayoutWithoutOffTiles[i]].Type == ETileType::StartTile && !bIncludeStartTile) {
+			TileLayoutWithoutOffTiles.RemoveAt(i);
+			bElementRemoved = true;
+		}
+
+		if (!bElementRemoved) {
+			--i;
+		}
+	}
+	
+	return TileLayoutWithoutOffTiles;
+}
+
 
 
 ECardinalPoints UDungeonGenerationV2Helpers::GetInverseCardinalDirection(ECardinalPoints Direction) {
@@ -277,34 +408,218 @@ EConnectionType UDungeonGenerationV2Helpers::GetConnectionTypeFromDirections(con
 
 // DungeonGenerationV2Helpers.cpp
 void UDungeonGenerationV2Helpers::UpdateTileDirections(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D PreviousLocation, FVector2D CurrentLocation) {
+
+	if (CurrentLocation == PreviousLocation) return;
+	
 	FVector2D Direction = CurrentLocation - PreviousLocation;
 	ECardinalPoints CardinalDirection = FVector2DToCardinalPoint(Direction);
 
 	// Set the cardinal points of the previous tile
 	FTileInfo& PreviousTile = TileLayout.FindChecked(PreviousLocation);
-	PreviousTile.Directions[CardinalDirection] = true;
-
+	
 	// Set the cardinal points of the current tile
 	FTileInfo& CurrentTile = TileLayout.FindChecked(CurrentLocation);
 	ECardinalPoints OppositeDirection = GetInverseCardinalDirection(CardinalDirection);
+
+	if (PreviousTile.Type == ETileType::OffTile || CurrentTile.Type == ETileType::OffTile) return;
+	PreviousTile.Directions[CardinalDirection] = true;
 	CurrentTile.Directions[OppositeDirection] = true;
+
+	
+	if (PreviousLocation == FVector2D(1,0) || CurrentLocation == FVector2D(1,0)) {
+		UE_LOG(LogTemp, Warning, TEXT("PreviousLocation: %s"), *PreviousLocation.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("CurrentLocation: %s"), *CurrentLocation.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("TileLayoutCount: %d"), GetTileCountWithoutOffTiles(TileLayout));
+	}
+	
 }
 
+bool UDungeonGenerationV2Helpers::CreatePathToTarget(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D TargetLocation) {
+	// Create a TArray and sort tiles based on their distance to the target location
+	TArray<FVector2D> SortedTiles;
+	for (const auto& Tile : TileLayout) {
+		if (Tile.Value.Type == ETileType::OffTile) continue;
+		SortedTiles.Add(Tile.Key);
+	}
 
+	//Sort the array based on distance (closest to furthest)
+	SortedTiles.Sort([&](const FVector2D& A, const FVector2D& B) {
+		return FVector2D::Distance(A, TargetLocation) < FVector2D::Distance(B, TargetLocation);
+	});
 
-FVector2D UDungeonGenerationV2Helpers::FindClosestLocationToTarget(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D TargetLocation) {
-	FVector2D ClosestLocation;
-	float MinDistance = FLT_MAX;
+	// Iterate through the sorted tiles and attempt to find a path
+	for (const FVector2D& StartTile : SortedTiles) {
+		TArray<FVector2D> Path = AStarPathfinding(TileLayout, StartTile, TargetLocation);
 
-	for (const auto& TileEntry : TileLayout) {
-		float Distance = FVector2D::Distance(TileEntry.Key, TargetLocation);
-		if (Distance < MinDistance) {
-			MinDistance = Distance;
-			ClosestLocation = TileEntry.Key;
+		UE_LOG(LogTemp, Log, TEXT("Path length: %d"), Path.Num());
+
+		// If a path is found, set up the entire path in the tile map and return true
+		if (Path.Num() > 0) {
+			
+
+			
+			for (int32 i = 0; i < Path.Num() - 1; ++i) {
+				FVector2D CurrentLocation = Path[i];
+				FVector2D NextLocation = Path[i + 1];
+
+				// Add the path tiles to the TileLayout if they are not already present
+				if (!TileLayout.Contains(CurrentLocation)) {
+					FTileInfo CurrentTileInfo;
+					TileLayout.Add(CurrentLocation, CurrentTileInfo);
+				}
+				if (!TileLayout.Contains(NextLocation)) {
+					FTileInfo NextTileInfo;
+					TileLayout.Add(NextLocation, NextTileInfo);
+				}
+
+				UpdateTileDirections(TileLayout, CurrentLocation, NextLocation);
+			}
+			return true;
 		}
 	}
 
-	return ClosestLocation;
+	// If no valid path is found, return false
+	return false;
 }
+
+
+
+
+TArray<FVector2D> UDungeonGenerationV2Helpers::AStarPathfinding(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D StartLocation, FVector2D EndLocation) {
+    TSet<FVector2D> OpenSet;
+    TSet<FVector2D> ClosedSet;
+    TMap<FVector2D, TSharedPtr<FDungeonPathNode>> NodeMap;
+
+	
+		if ((TileLayout.Contains(StartLocation) && TileLayout[StartLocation].Type == ETileType::OffTile) ||
+	    (TileLayout.Contains(EndLocation) && TileLayout[EndLocation].Type == ETileType::OffTile)) {
+	    // Return an empty path if either the start or end location is an off-tile
+	    return TArray<FVector2D>();
+	}
+
+    // Initialize the starting node and add it to the OpenSet
+    TSharedPtr<FDungeonPathNode> StartNode = MakeShared<FDungeonPathNode>(StartLocation, FVector2D::Distance(StartLocation, EndLocation), 0, nullptr);
+    OpenSet.Add(StartLocation);
+    NodeMap.Add(StartLocation, StartNode);
+
+    while (OpenSet.Num() > 0) {
+    	UE_LOG(LogTemp, Log, TEXT("OpenSet size: %d"), OpenSet.Num());
+        // Find the node with the lowest FScore in the OpenSet
+        FVector2D CurrentNodeLocation = GetLowestFScoreNode(OpenSet, NodeMap);
+
+    	UE_LOG(LogTemp, Log, TEXT("CurrentNodeLocation: %s"), *CurrentNodeLocation.ToString());
+        // If the current node is the end location, a path has been found
+        if (CurrentNodeLocation == EndLocation) {
+            TArray<FVector2D> Path = ReconstructPath(NodeMap, CurrentNodeLocation);
+            return Path;
+        }
+
+        OpenSet.Remove(CurrentNodeLocation);
+        ClosedSet.Add(CurrentNodeLocation);
+
+        // Get the neighbors of the current node
+        TArray<FVector2D> Neighbors = GetNeighbors(CurrentNodeLocation);
+
+    	for (const FVector2D& NeighborLocation : Neighbors) {
+    		// Ignore this neighbor if it's in the ClosedSet or is an OffTile or Invalid Tile
+    		if (ClosedSet.Contains(NeighborLocation) || TileLayout.Contains(NeighborLocation)) {
+    			continue;
+    		}
+
+            float TentativeGScore = NodeMap[CurrentNodeLocation]->GScore + FVector2D::Distance(CurrentNodeLocation, NeighborLocation);
+
+            if (!OpenSet.Contains(NeighborLocation)) {
+                OpenSet.Add(NeighborLocation);
+            } else if (TentativeGScore >= NodeMap[NeighborLocation]->GScore) {
+                continue;
+            }
+
+            // Update the neighbor node or create a new one if it doesn't exist
+    		if (NodeMap.Contains(NeighborLocation)) {
+    			NodeMap[NeighborLocation]->GScore = TentativeGScore;
+    			NodeMap[NeighborLocation]->FScore = TentativeGScore + FVector2D::Distance(NeighborLocation, EndLocation);
+    			NodeMap[NeighborLocation]->Parent = *NodeMap.Find(CurrentNodeLocation); 
+    		} else {
+    			TSharedPtr<FDungeonPathNode> NeighborNode = MakeShared<FDungeonPathNode>(NeighborLocation, FVector2D::Distance(NeighborLocation, EndLocation), TentativeGScore, *NodeMap.Find(CurrentNodeLocation));
+    			NodeMap.Add(NeighborLocation, NeighborNode);
+    		}
+        }
+    }
+
+    // If no path was found, return an empty path
+    return TArray<FVector2D>();
+}
+
+
+
+FVector2D UDungeonGenerationV2Helpers::GetLowestFScoreNode(TSet<FVector2D>& OpenSet, TMap<FVector2D, TSharedPtr<FDungeonPathNode>>& NodeMap) {
+	FVector2D LowestFScoreNodeLocation;
+	float MinFScore = MAX_flt;
+
+	for (const FVector2D& Location : OpenSet) {
+		if (NodeMap[Location]->FScore < MinFScore) {
+			MinFScore = NodeMap[Location]->FScore;
+			LowestFScoreNodeLocation = Location;
+		}
+	}
+
+	return LowestFScoreNodeLocation;
+}
+
+TArray<FVector2D> UDungeonGenerationV2Helpers::GetNeighbors(FVector2D CurrentNodeLocation) {
+	TArray<FVector2D> Neighbors = {
+		CurrentNodeLocation + FVector2D(1, 0),
+		CurrentNodeLocation + FVector2D(-1, 0),
+		CurrentNodeLocation + FVector2D(0, 1),
+		CurrentNodeLocation + FVector2D(0, -1)
+		};
+	return Neighbors;
+}
+
+TArray<FVector2D> UDungeonGenerationV2Helpers::ReconstructPath(TMap<FVector2D, TSharedPtr<FDungeonPathNode>>& NodeMap, FVector2D CurrentNodeLocation) {
+	TArray<FVector2D> Path;
+
+	if (!NodeMap.Contains(CurrentNodeLocation)) {
+		UE_LOG(LogTemp, Error, TEXT("ReconstructPath: NodeMap does not contain CurrentNodeLocation."));
+		return Path;
+	}
+
+	TSharedPtr<FDungeonPathNode> CurrentNode = NodeMap[CurrentNodeLocation];
+	TSharedPtr<FDungeonPathNode> PreviousNode = nullptr;
+
+	while (CurrentNode.IsValid()) {
+		if (PreviousNode == CurrentNode) {
+			UE_LOG(LogTemp, Error, TEXT("ReconstructPath: Encountered an infinite loop."));
+			break;
+		}
+
+		Path.Add(CurrentNode->Location);
+		PreviousNode = CurrentNode;
+
+		if (CurrentNode->Parent.IsValid()) {
+			if (NodeMap.Contains(CurrentNode->Parent->Location)) {
+				CurrentNode = CurrentNode->Parent;
+			} else {
+				UE_LOG(LogTemp, Error, TEXT("ReconstructPath: NodeMap does not contain the parent node's location."));
+				break;
+			}
+		} else {
+			UE_LOG(LogTemp, Error, TEXT("ReconstructPath: Encountered an invalid parent node."));
+			break;
+		}
+	}
+
+	// Reverse the path to start from the beginning
+	Algo::Reverse(Path);
+
+	return Path;
+}
+
+
+
+
+
+
+
 
 

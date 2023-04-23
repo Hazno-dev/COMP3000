@@ -14,8 +14,10 @@ AAbilityBase::AAbilityBase() {
 	bIsAbilityPlaying = false;
 	aSyncRecharge = false;
 	CurrentCharges = MaxCharges;
-	
-	
+	bRangeCastAbility = false;
+	bIsCasting = false;
+	RangeCastSize = FVector(1.f);
+	bIsWorldCursorVisible = true;
 	
 }
 
@@ -28,9 +30,9 @@ void AAbilityBase::CustomBeginPlay(AMainCharacter* MainCharacter, UWorld* World)
 	BaseCharacterSpeed = MainCharacterRef->GetCharacterMovement()->MaxWalkSpeed;
 	BaseCharacterAcceleration = MainCharacterRef->GetCharacterMovement()->MaxAcceleration;
 
+	this->SetOwner(MainCharacterRef);
+
 	CooldownTimerHandle.Invalidate();
-	
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("DashTry"));
 }
 
 void AAbilityBase::CustomTick(float DeltaTime) {
@@ -45,24 +47,30 @@ void AAbilityBase::CustomTick(float DeltaTime) {
 void AAbilityBase::CoreBeginAbility() {
 	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("DashTry"));
 	//current charges gengine
-	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::FromInt(CurrentCharges));
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::FromInt(CurrentCharges));
 
 	if (!IsValid(MainCharacterRef)) return;
+
+	if (bRangeCastAbility && bIsCasting) return;
 	
 	if (!bIsAbilityPlaying && CurrentCharges > 0) {
 		
 		bIsAbilityPlaying = true;
-		CurrentCharges--;
 
-		// Call EndAbility function after specified duration has elapsed
-		WorldRef->GetTimerManager().SetTimer(AbilityEndTimerHandle, this, &AAbilityBase::CoreEndAbility, AbilityDuration, false);
+		if (bRangeCastAbility) CoreStartCasting();
+		else {
+			CurrentCharges--;
 
-		if (aSyncRecharge && !CooldownTimerHandle.IsValid()) {
-			CoreStartCooldown();
-		}
+			// Call EndAbility function after specified duration has elapsed
+			WorldRef->GetTimerManager().SetTimer(AbilityEndTimerHandle, this, &AAbilityBase::CoreEndAbility, AbilityDuration, false);
+
+			if (aSyncRecharge && !CooldownTimerHandle.IsValid()) {
+				CoreStartCooldown();
+			}
 		
-		BeginAbility();
-		OnAbilityStart.Broadcast();
+			BeginAbility();
+			OnAbilityStart.Broadcast();
+		}
 	}
 }
 
@@ -75,6 +83,8 @@ void AAbilityBase::CoreEndAbility() {
 	if (!aSyncRecharge && !CooldownTimerHandle.IsValid()) {
 		CoreStartCooldown();
 	}
+
+	if (IsValid(SpawnedWorldCursorRef)) SpawnedWorldCursorRef->Destroy();
 	
 	EndAbility();
 	OnAbilityEnd.Broadcast();
@@ -113,6 +123,7 @@ void AAbilityBase::CoreEndCooldown() {
 			CoreStartCooldown();
 		}
 	}
+	else OnAbilityCooldownEnd.Broadcast();
 	
 	EndCooldown();
 }
@@ -122,3 +133,64 @@ void AAbilityBase::StartCooldown() {
 
 void AAbilityBase::EndCooldown() {
 }
+
+void AAbilityBase::CoreStartCasting() {
+	MainCharacterRef->CastingStart.Broadcast();
+
+	bIsCasting = true;
+	
+	if (IsValid(MainCharacterRef->Subsystem) && IsValid(MainCharacterRef->AOEInputMappingContext)) {
+		if (!MainCharacterRef->Subsystem->HasMappingContext(MainCharacterRef->AOEInputMappingContext)) 
+			MainCharacterRef->Subsystem->AddMappingContext(MainCharacterRef->AOEInputMappingContext, MainCharacterRef->BaseMappingPriority + 1);
+	}
+	
+	MainCharacterRef->Punching = false;
+	MainCharacterRef->WorldCursor->ToggleVisibility(true);
+}
+
+void AAbilityBase::CoreEndCasting(FVector TargetLocation, FVector TargetNormal) {
+	MainCharacterRef->CastingFinish.Broadcast();
+
+	CastLocation = TargetLocation;
+	CastNormal = TargetNormal;
+
+	if (IsValid(MainCharacterRef->Subsystem) && IsValid(MainCharacterRef->AOEInputMappingContext)) {
+		if (MainCharacterRef->Subsystem->HasMappingContext(MainCharacterRef->AOEInputMappingContext)) 
+			MainCharacterRef->Subsystem->RemoveMappingContext(MainCharacterRef->AOEInputMappingContext);
+	}
+	
+	CurrentCharges--;
+
+	// Call EndAbility function after specified duration has elapsed
+	WorldRef->GetTimerManager().SetTimer(AbilityEndTimerHandle, this, &AAbilityBase::CoreEndAbility, AbilityDuration, false);
+
+	if (aSyncRecharge && !CooldownTimerHandle.IsValid()) {
+		CoreStartCooldown();
+	}
+		
+	BeginAbility();
+	OnAbilityStart.Broadcast();
+
+	if (bIsWorldCursorVisible) {
+		if (IsValid(WorldCursorBP)) SpawnedWorldCursorRef = WorldRef->SpawnActor<AWorldCursor>(WorldCursorBP, TargetLocation, FRotator::ZeroRotator);
+		SpawnedWorldCursorRef->ScaleCursor(RangeCastSize);
+		SpawnedWorldCursorRef->MoveCursor(TargetLocation, TargetNormal);
+	}
+
+	MainCharacterRef->WorldCursor->ToggleVisibility(false);
+	bIsCasting = false;
+}
+
+void AAbilityBase::CoreCancelCasting() {
+	MainCharacterRef->CastingCancel.Broadcast();
+
+	if (IsValid(MainCharacterRef->Subsystem) && IsValid(MainCharacterRef->AOEInputMappingContext)) {
+		if (MainCharacterRef->Subsystem->HasMappingContext(MainCharacterRef->AOEInputMappingContext)) 
+			MainCharacterRef->Subsystem->RemoveMappingContext(MainCharacterRef->AOEInputMappingContext);
+	}
+
+	MainCharacterRef->WorldCursor->ToggleVisibility(false);
+	bIsCasting = false;
+	bIsAbilityPlaying = false;
+}
+

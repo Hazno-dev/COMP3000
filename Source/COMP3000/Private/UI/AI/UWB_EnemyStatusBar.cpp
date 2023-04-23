@@ -16,9 +16,12 @@ void UUWB_EnemyStatusBar::SetupComponents(ABaseAICharacter* InAICharacter, float
 	if (!IsValid(AICharacterRef)) return;
 
 	HealthBar->SetPercent(1);
+
+	if (IsValid(AICharacterRef->EnemyStatusEffectSystemComponent)){
+		AICharacterRef->EnemyStatusEffectSystemComponent->EventNewStatusEffect.AddDynamic(this, &UUWB_EnemyStatusBar::ReevaluateStatusEffects);
+		AICharacterRef->EnemyStatusEffectSystemComponent->EventRevertStatusEffect.AddDynamic(this, &UUWB_EnemyStatusBar::ReevaluateStatusEffects);
+	}
 	
-	AICharacterRef->EnemyStatusEffectSystemComponent->EventNewStatusEffect.AddDynamic(this, &UUWB_EnemyStatusBar::ReevaluateStatusEffects);
-	AICharacterRef->EnemyStatusEffectSystemComponent->EventRevertStatusEffect.AddDynamic(this, &UUWB_EnemyStatusBar::ReevaluateStatusEffects);
 	AICharacterRef->TookDamageEvent.AddDynamic(this, &UUWB_EnemyStatusBar::UpdateHealthBar);
 	AICharacterRef->HealthChangedEvent.AddDynamic(this, &UUWB_EnemyStatusBar::UpdateHealthBar);
 	AICharacterRef->DetectedEvent.AddDynamic(this, &UUWB_EnemyStatusBar::UpdateHealthBar);
@@ -70,6 +73,8 @@ void UUWB_EnemyStatusBar::ReevaluateStatusEffects() {
 	if (!IsValid(AICharacterRef)) return;
 
 	StatusEffectBox->ClearChildren();
+
+	if (!IsValid(AICharacterRef->EnemyStatusEffectSystemComponent)) return;
 
 	TArray<UStatusEffectBase*> StatusEffects = AICharacterRef->EnemyStatusEffectSystemComponent->GetCurrentStatusEffects();
 

@@ -10,7 +10,13 @@ EBTNodeResult::Type UBTTask_SetFocus::ExecuteTask(UBehaviorTreeComponent& OwnerC
 	
 	AAIController* AIController = OwnerComp.GetAIOwner();
 
-	AIController->SetFocus(Cast<AActor>(OwnerComp.GetBlackboardComponent()->GetValueAsObject(BlackboardKey.SelectedKeyName)));
+	if (AIController == nullptr) {
+		FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
+		return EBTNodeResult::Failed;
+	}
+
+	if (BoolInput) AIController->SetFocus(Cast<AActor>(OwnerComp.GetBlackboardComponent()->GetValueAsObject(BlackboardKey.SelectedKeyName)));
+	else AIController->ClearFocus(EAIFocusPriority::Gameplay);
 	
 	FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
 	return EBTNodeResult::Succeeded;

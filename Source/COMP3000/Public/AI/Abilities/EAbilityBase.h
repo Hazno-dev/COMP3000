@@ -112,4 +112,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
 	TSubclassOf<AFadeText>  FadeTextClass;
 
+	bool bHitPlayer;
+
 };
