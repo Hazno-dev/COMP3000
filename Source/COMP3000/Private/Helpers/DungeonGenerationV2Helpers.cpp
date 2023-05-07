@@ -179,7 +179,7 @@ FRotator UDungeonGenerationV2Helpers::GetTileRotation(const FTileInfo& TileInfo,
 	float Yaw = 0.0f;
 
 	if (TileBase->bMultiDirectional) {
-		// If the tile is multi-directional, we need to find the rotation based on the directions and connection type
+		// If the tile is multi-directional find the rotation based on the directions and connection type
 		TArray<bool> CurrentTileMapDirections;
 		TileInfo.Directions.GenerateValueArray(CurrentTileMapDirections);
 
@@ -340,6 +340,7 @@ TArray<FVector2D> UDungeonGenerationV2Helpers::UpdateOffTilesFromWorldComponents
 
             // Check if the BoxComponent exists
             if (BoxComponent) {
+            	
                 // Calculate the number of tiles in both X and Y dimensions based on the BoxComponent size
                 FVector BoxExtent = BoxComponent->GetScaledBoxExtent();
                 FIntPoint TileCount(FMath::RoundToInt(BoxExtent.X * 2 / TilesSize.X), FMath::RoundToInt(BoxExtent.Y * 2 / TilesSize.Y));
@@ -348,16 +349,12 @@ TArray<FVector2D> UDungeonGenerationV2Helpers::UpdateOffTilesFromWorldComponents
                 if (TileCount.X <= 0 || TileCount.Y <= 0) {
                     continue;
                 }
-
-                // Calculate the offset for the TileWorldPosition to ensure proper rounding
                 FVector TileOffset(TilesSize.X / 2, TilesSize.Y / 2, 0);
 
                 // Iterate through the tiles in both X and Y dimensions
                 for (int32 i = 0; i < TileCount.X; ++i) {
                     for (int32 j = 0; j < TileCount.Y; ++j) {
-                        // Calculate the world position of the tile based on the RelativePosition, TilesSize, and TileOffset
                         FVector TileWorldPosition = RelativePosition + FVector(i * TilesSize.X, j * TilesSize.Y, 0) - TileOffset;
-                        // Convert the TileWorldPosition into a FVector2D tile location by dividing by TilesSize and rounding to the nearest integer
                         FVector2D TileLocation(FMath::RoundToInt((TileWorldPosition.X + TilesSize.X / 2) / TilesSize.X), FMath::RoundToInt((TileWorldPosition.Y + TilesSize.Y / 2) / TilesSize.Y));
 
                         // Add the calculated tile location to the OffTiles array

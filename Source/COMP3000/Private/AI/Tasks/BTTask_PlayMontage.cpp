@@ -20,6 +20,8 @@ EBTNodeResult::Type UBTTask_PlayMontage::ExecuteTask(UBehaviorTreeComponent& Own
 	AICharacterRef = Cast<ABaseAICharacter>(OwnerComp.GetAIOwner()->GetPawn());
 	if (!IsValid(AICharacterRef)) return EBTNodeResult::Failed;
 
+	if (!IsValid(AICharacterRef->GetMesh())) return EBTNodeResult::Failed;
+
 	if (!IsValid(AICharacterRef->GetMesh()->GetAnimInstance())) return EBTNodeResult::Failed;
 	
 	if (AICharacterRef->GetMesh()->GetAnimInstance()->Montage_IsPlaying(Montage)) return EBTNodeResult::Failed;
@@ -35,11 +37,21 @@ EBTNodeResult::Type UBTTask_PlayMontage::ExecuteTask(UBehaviorTreeComponent& Own
 void UBTTask_PlayMontage::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) {
 	Super::TickTask(OwnerComp, NodeMemory, DeltaSeconds);
 
+	if (!IsValid(Montage)) return;
+	if (!IsValid(AICharacterRef)) return;
+	if (!IsValid(AICharacterRef->GetMesh())) return;
+	if (!IsValid(AICharacterRef->GetMesh()->GetAnimInstance())) return;
+
 	if (AICharacterRef->GetMesh()->GetAnimInstance()->Montage_IsPlaying(Montage)) return;
 
 	FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
 }
 
 void UBTTask_PlayMontage::FinishTask() {
+	if (!IsValid(Montage)) return;
+	if (!IsValid(AICharacterRef)) return;
+	if (!IsValid(AICharacterRef->GetMesh())) return;
+	if (!IsValid(AICharacterRef->GetMesh()->GetAnimInstance())) return;
+	
 	AICharacterRef->GetMesh()->GetAnimInstance()->Montage_Stop(0.0f, Montage);
 }

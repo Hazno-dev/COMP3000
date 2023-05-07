@@ -73,36 +73,33 @@ void UPlayerFaderComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 			}
 		}
 	}
-
-	//Check angle between player forward/direction to object, below difference = still in view regardless of trace.
-	/*for (UMeshFaderComponent* CurrentFader : CurrentFaders) {
-		AActor* FaderActor = CurrentFader->GetOwner();
-		if (IsValid(FaderActor)) {
-			//Normalized direction from player to the object
-			FVector DirectionToActor = (FaderActor->GetActorLocation() - PlayerLocation).GetSafeNormal();
-			float AngleDifference = FMath::Acos(FVector::DotProduct(Player->GetActorForwardVector(), DirectionToActor)) * (180.0f / PI);
-			
-			if (AngleDifference < 30.0f) {
-				CurrentFadersToUpdate.AddUnique(CurrentFader);
-			}
-		}
-	}*/
 	
 	if (CurrentFadersToUpdate == CurrentFaders) return;
+
+	TArray<UMeshFaderComponent*> FadersToAdd;
+	TArray<UMeshFaderComponent*> FadersToRemove;
 
 	for (UMeshFaderComponent* CurrentFader : CurrentFadersToUpdate) {
 		if (CurrentFaders.Contains(CurrentFader)) continue;
 		if (!IsValid(CurrentFader)) continue;
 
 		CurrentFader->FadeIn();
-		CurrentFaders.Add(CurrentFader);
+		FadersToAdd.Add(CurrentFader);
 	}
 	for (UMeshFaderComponent* CurrentFader : CurrentFaders) {
 		if (CurrentFadersToUpdate.Contains(CurrentFader)) continue;
 		if (!IsValid(CurrentFader)) continue;
-		
+
 		CurrentFader->FadeOut();
-		CurrentFaders.Remove(CurrentFader);
+		FadersToRemove.Add(CurrentFader);
+	}
+
+	// Perform the actual addition and removal operations
+	for (UMeshFaderComponent* FaderToAdd : FadersToAdd) {
+		CurrentFaders.Add(FaderToAdd);
+	}
+	for (UMeshFaderComponent* FaderToRemove : FadersToRemove) {
+		CurrentFaders.Remove(FaderToRemove);
 	}
 	
 }

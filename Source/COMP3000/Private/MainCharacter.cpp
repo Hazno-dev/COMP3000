@@ -90,7 +90,7 @@ AMainCharacter::AMainCharacter()
 	SpringArm->bDoCollisionTest = false;
 
 	//Camera Setup
-	Camera->SetupAttachment(SpringArm, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
+	Camera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);
 	
 	// No camera rotation!!
 	bUseControllerRotationPitch = false;
@@ -103,8 +103,8 @@ AMainCharacter::AMainCharacter()
 	Camera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
 	// Configure character movement
-	GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...	
-	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f); // ...at this rotation rate
+	GetCharacterMovement()->bOrientRotationToMovement = true; 
+	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 
 	//Character movement settings
 	GetCharacterMovement()->JumpZVelocity = 300.f;

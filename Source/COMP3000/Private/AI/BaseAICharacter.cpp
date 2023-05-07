@@ -100,6 +100,7 @@ void ABaseAICharacter::BeginPlay()
 	Super::BeginPlay();
 
 	ControllerRef = Cast<ABaseAIController>(GetController());
+	
 
 	UUWB_EnemyStatusBar* StatBarRef = Cast<UUWB_EnemyStatusBar>(StatusBar->GetUserWidgetObject());
 	if (IsValid(StatBarRef)) StatBarRef->SetupComponents(this, FMath::Clamp(MaxHealth / 20.f, 3.f, 8.f));
@@ -252,8 +253,9 @@ void ABaseAICharacter::Ragdoll(float Duration)
 
 void ABaseAICharacter::UpdateRagdoll() {
 	if (bIsRagdoll) {
+		
 		// Get the location of the mesh's root bone or pelvis
-		FName RootBoneName = GetMesh()->GetBoneName(0); // This should be the pelvis or root bone
+		FName RootBoneName = GetMesh()->GetBoneName(0); 
 		FVector MeshRootLocation = GetMesh()->GetSocketLocation(RootBoneName);
 		GetCapsuleComponent()->SetWorldLocation(MeshRootLocation + FVector(0, 0, 90));
 	}

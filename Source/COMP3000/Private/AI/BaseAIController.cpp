@@ -60,7 +60,7 @@ void ABaseAIController::OnTargetPerceptionUpdated(AActor* Actor, FAIStimulus Sti
 	ABaseAICharacter* AICharacter = Cast<ABaseAICharacter>(GetPawn());
 	if (IsValid(AICharacter)) AICharacter->SetTarget(Actor);
 
-	// Disable the perception component after the player is detected
+	//disable the perception component after the player is detected
 	AIPerceptionComponent->SetSenseEnabled(UAISense_Sight::StaticClass(), false);
 	AIPerceptionComponent->OnTargetPerceptionUpdated.RemoveDynamic(this, &ABaseAIController::OnTargetPerceptionUpdated);
 

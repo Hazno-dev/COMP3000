@@ -26,5 +26,5 @@ void UBTService_UpdateTargetLocation::TickNode(UBehaviorTreeComponent& OwnerComp
 	
 
 	FVector TargetLocation = TargetActor->GetActorLocation();
-	BlackboardComp->SetValueAsVector("TargetLocation", TargetLocation); // Replace "TargetLocation" with the name of your blackboard key for the target location
+	BlackboardComp->SetValueAsVector("TargetLocation", TargetLocation); 
 }

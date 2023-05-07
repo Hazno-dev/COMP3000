@@ -162,7 +162,6 @@ void AAbilityBase::CoreEndCasting(FVector TargetLocation, FVector TargetNormal) 
 	
 	CurrentCharges--;
 
-	// Call EndAbility function after specified duration has elapsed
 	WorldRef->GetTimerManager().SetTimer(AbilityEndTimerHandle, this, &AAbilityBase::CoreEndAbility, AbilityDuration, false);
 
 	if (aSyncRecharge && !CooldownTimerHandle.IsValid()) {
