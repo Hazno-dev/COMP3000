@@ -6,8 +6,11 @@
 
 #include "MainCharacter.h"
 #include "SkeletalMeshMerge.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "Helpers/ArrayHelpers.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Kismet/KismetRenderingLibrary.h"
 
 // Sets default values for this component's properties
 UHeroGenerator::UHeroGenerator()
@@ -18,7 +21,7 @@ UHeroGenerator::UHeroGenerator()
 	
 	SetupMeshes();
 	MainCharacterRef = Cast<AMainCharacter>(GetOwner());
-	if (MainCharacterRef) SetupAttachmentRuntime();
+	if (MainCharacterRef) SetupMeshAttachments();
 	
 }
 
@@ -26,25 +29,6 @@ UHeroGenerator::UHeroGenerator()
 void UHeroGenerator::BeginPlay()
 {
 	Super::BeginPlay();
-
-	/*
-	MainCharacterRef = Cast<AMainCharacter>(GetOwner());
-	if (!MainCharacterRef) return;
-
-	GetMesh()->SetVisibility(false, false);
-	
-	SetupAttachmentRuntime();
-	DynamicMaterial = GetMesh()->CreateDynamicMaterialInstance(0, MaterialReference);
-	SetMaterials();
-
-	HeroStatsDataTable->GetAllRows<FHeroStats>("FHeroStats", DataTableStatsRef);
-	*/
-
-	/*for (int i = 0; i < HeroDataArray.Num(); i++) {
-		GenerateHero(HeroDataArray[i]);
-	}
-	
-	SetMeshes(HeroDataArray[0]);*/
 	
 }
 
@@ -87,9 +71,13 @@ TArray<UHeroDataInstance*> UHeroGenerator::GenerateHero() {
 		} 
 		
 		GenerateHeroMeshes(HDI);
+
+		SetMeshes(HDI);
+		
 		ReturnHDI.Add(HDI);
 	}
-
+	
+	
 	SetMeshes(ReturnHDI[0]);
 
 	return ReturnHDI;
@@ -158,6 +146,7 @@ void UHeroGenerator::SetupMeshes() {
 }
 
 void UHeroGenerator::SetupMeshAttachments() {
+	
 	AHeadCoveringNoHair->SetupAttachment(GetMesh());
 	AHair->SetupAttachment(GetMesh());
 	AHeadAttachmentHair->SetupAttachment(GetMesh());
@@ -193,6 +182,7 @@ void UHeroGenerator::SetupMeshAttachments() {
 
 void UHeroGenerator::SetupAttachmentRuntime() {
 	FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, true);
+	
 	AHeadCoveringNoHair->AttachToComponent(GetMesh(), AttachmentRules);
 	AHair->AttachToComponent(GetMesh(), AttachmentRules);
 	AHeadAttachmentHair->AttachToComponent(GetMesh(), AttachmentRules);
@@ -226,6 +216,7 @@ void UHeroGenerator::SetupAttachmentRuntime() {
 	GHandR->AttachToComponent(GetMesh(), AttachmentRules);
 	GHandL->AttachToComponent(GetMesh(), AttachmentRules);
 	GHips->AttachToComponent(GetMesh(), AttachmentRules);
+	
 	
 }
 
@@ -507,6 +498,53 @@ void UHeroGenerator::SetMeshes(UHeroDataInstance* InHero) {
 	AExtra->SetLeaderPoseComponent(GetMesh());
 }
 
+void UHeroGenerator::SetupIcons(TArray<UHeroDataInstance*>& InHeroDataArray) {
+	if (!IsValid(MainCharacterRef->ThumbnailCaptureComponent)) return;
+	MainCharacterRef->ThumbnailCaptureComponent->RegisterComponent();
+
+	for (int i = 0; i < InHeroDataArray.Num(); i++) {
+		SetMeshes(InHeroDataArray[i]);
+		
+		UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
+		RenderTarget->ClearColor = FLinearColor(0, 0, 0, 0);
+		RenderTarget->InitCustomFormat(512, 512, PF_FloatRGBA, false);
+
+		//MainCharacterRef->ThumbnailCaptureComponent->CaptureSource = ESceneCaptureSource::SCS_FinalColorHDR;
+		MainCharacterRef->ThumbnailCaptureComponent->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+		MainCharacterRef->ThumbnailCaptureComponent->ShowOnlyActorComponents(MainCharacterRef, true);
+		MainCharacterRef->ThumbnailCaptureComponent->TextureTarget = RenderTarget;
+		MainCharacterRef->ThumbnailCaptureComponent->CaptureScene();
+
+		UTexture2D* Thumbnail = UTexture2D::CreateTransient(RenderTarget->SizeX, RenderTarget->SizeY, PF_B8G8R8A8);
+		Thumbnail->UpdateResource();
+		FTextureRenderTargetResource* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
+
+		TArray<FFloat16Color> FloatPixels;
+		FloatPixels.SetNumUninitialized(RenderTarget->SizeX * RenderTarget->SizeY);
+
+		FReadSurfaceDataFlags ReadPixelFlags(RCM_UNorm);
+		RenderTargetResource->ReadFloat16Pixels(FloatPixels);
+
+		TArray<FColor> Pixels;
+		Pixels.SetNumUninitialized(RenderTarget->SizeX * RenderTarget->SizeY);
+
+		for (int32 Index = 0; Index < FloatPixels.Num(); ++Index)
+		{
+			FLinearColor LinearColor(FloatPixels[Index]);
+			Pixels[Index] = LinearColor.ToFColor(false);
+		}
+
+		FMemory::Memcpy(Thumbnail->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE), Pixels.GetData(), Pixels.Num() * sizeof(FColor));
+		Thumbnail->PlatformData->Mips[0].BulkData.Unlock();
+
+		Thumbnail->UpdateResource();
+		InHeroDataArray[i]->Thumbnail = Thumbnail;
+
+	}
+	
+	MainCharacterRef->ThumbnailCaptureComponent->DestroyComponent();
+	MainCharacterRef->IconsSetup.Broadcast();
+}
 
 void UHeroGenerator::SetMeshesHidden(bool bIsHidden) {
 	GTorso->SetHiddenInGame(bIsHidden);

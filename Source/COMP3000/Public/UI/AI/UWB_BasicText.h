@@ -19,6 +19,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Text")
 	float FadeSpeed;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Text")
+	bool bAutoFade = true;
+
 protected:
 	
 	virtual void NativeConstruct() override;

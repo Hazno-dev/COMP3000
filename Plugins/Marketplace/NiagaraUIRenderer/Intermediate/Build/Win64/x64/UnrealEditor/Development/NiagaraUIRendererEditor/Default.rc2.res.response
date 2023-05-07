@@ -68,8 +68,10 @@
 /DORIGINAL_FILE_NAME="UnrealEditor-NiagaraUIRendererEditor.dll"
 /DBUILT_FROM_CHANGELIST=24887336
 /DBUILD_VERSION=++UE5+Release-5.2-CL-24887336
-/DBUILD_ICON_FILE_NAME="\"..\\Build\\Windows\\Resources\\Default.ico\""
+/DBUILD_ICON_FILE_NAME="\"C:\\Users\\callu\\Documents\\COMP3000 5.1\\Build\\Windows\\Application.ico\""
+/DPROJECT_COMPANY_NAME=HaznoGames
 /DPROJECT_COPYRIGHT_STRING="Callum Stables, 2023"
+/DPROJECT_PRODUCT_NAME=Variance
 /DPROJECT_PRODUCT_IDENTIFIER=COMP3000
 /fo "C:\Users\callu\Documents\COMP3000 5.1\Plugins\Marketplace\NiagaraUIRenderer\Intermediate\Build\Win64\x64\UnrealEditor\Development\NiagaraUIRendererEditor\Default.rc2.res"
 "..\Build\Windows\Resources\Default.rc2"

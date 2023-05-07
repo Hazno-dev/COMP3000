@@ -6,6 +6,7 @@
 #include "HeroGeneration.h"
 #include "InputActionValue.h"
 #include "GameFramework/Actor.h"
+#include "World/PSpawnPoint.h"
 #include "HeroManagerComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FHeroSwapped);
@@ -30,16 +31,36 @@ public:
 	void SetupReferences(class UPlayerBaseAbilities* InPlayerBaseAbilitiesRef, class UHeroGenerator* InHeroGeneratorRef, class AMainCharacter* InMainCharacterRef);
 	
 	void SetHeroDataArray(TArray<UHeroDataInstance*> InHeroDataArray);
-
+	
+	
 	UFUNCTION()
 	void SwapHero(const FInputActionValue& Value);
 
 	UFUNCTION()
 	void SwapHeroByIndex(int32 Index);
 
+	UFUNCTION()
+	void SwapHeroByIndexUnchecked(int32 Index, bool bSpawnParticles = true);
+
+	//Icons 
+	UFUNCTION()
+	void SetupIconsFromGen();
+	
+	UFUNCTION()
+	UTexture2D* GetCurrentHeroIcon();
+
+	UFUNCTION()
+	bool GetIconsLoaded() const { return bIconsSetup; }
+
+	UFUNCTION()
+	UTexture2D* GetHeroIconByIndex(int32 Index);
+
 	//HP Functions
 	UFUNCTION()
 	void TookDamage();
+
+	UFUNCTION()
+	void KillVolumeDamage();
 
 	UFUNCTION()
 	void TookHealing();
@@ -91,6 +112,20 @@ public:
 	
 	TArray<FLevelXP*> XPLevelArray;
 
+	//Spawn Point Functions
+	UFUNCTION()
+	void RespawnHero();
+
+	UFUNCTION()
+	void FindNearestSpawnPoint();
+
+	UFUNCTION()
+	void SetSpawnPoint(APSpawnPoint* InSpawnPoint) { PlayerSpawnPoint = InSpawnPoint; }
+	
+	UPROPERTY()
+	APSpawnPoint* PlayerSpawnPoint;
+	
+	
 	FHeroSwapped HeroSwappedEvent;
 	FLevelUp LevelUpEvent;
 	FXPChanged XPChangedEvent;
@@ -115,6 +150,8 @@ private:
 	class AMainCharacter* MainCharacterRef;
 
 	FTimerHandle IFramesTimerHandle;
+
+	bool bIconsSetup = false;
 
 	//Asset References
 public:

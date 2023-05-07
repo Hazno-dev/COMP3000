@@ -25,5 +25,11 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AbilityData")
 	TSubclassOf<ASplashDamageContainer> SplashDamageContainer;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundCue* ExplosionSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundAttenuation* ExplosionAttenuation;
 	
 };

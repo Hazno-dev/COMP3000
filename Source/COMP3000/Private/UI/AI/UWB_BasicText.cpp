@@ -10,6 +10,8 @@ void UUWB_BasicText::NativeConstruct() {
 void UUWB_BasicText::NativeTick(const FGeometry& MyGeometry, float InDeltaTime) {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
+	if (!bAutoFade) return;
+	
 	TextBlock->SetOpacity(Opacity);
 	FLinearColor Color = TextBlock->GetShadowColorAndOpacity();
 	Color.A = Opacity;

@@ -12,7 +12,10 @@
 #include "Components/PointLightComponent.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
+#include "GameFramework/PawnMovementComponent.h"
+#include "Heroes/BaseAudioManager.h"
 #include "Heroes/HeroManagerComponent.h"
+#include "World/PSpawnPoint.h"
 #include "World/WorldCursor.h"
 
 
@@ -29,6 +32,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFistFire);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FCastingStart);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FCastingEnd);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FCastingCancel);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FIconsSetup);
 UCLASS()
 class COMP3000_API AMainCharacter : public ACharacter
 {
@@ -82,8 +86,52 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara")
 	UProjectileSpawner* ProjectileSpawner;
 
+	/* Image Capture Comp */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
+	USceneCaptureComponent2D* ThumbnailCaptureComponent;
+
+	FIconsSetup IconsSetup;
+
 	UFUNCTION(BlueprintCallable)
 	void ShootProjectile();
+
+	/** Audio */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Audio")
+	USpringArmComponent* AudioListenerSpringArmComponent;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Audio")
+	USceneComponent* AudioListenerComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Audio")
+	UBaseAudioManager* AudioManager;
+
+	UFUNCTION()
+	void Footsteps();
+
+	/* AI Collider Overlap, used for LODing the AI */
+	UPROPERTY(VisibleAnywhere, Category = AICollider)
+	TObjectPtr<USphereComponent> AICollider;
+	
+	UPROPERTY(VisibleAnywhere, Category = AICollider)
+	TObjectPtr<USphereComponent> InnerAICollider;
+
+	UFUNCTION()
+	void OnAIColliderBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+	                              UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
+	                              const FHitResult& SweepResult);
+
+	UFUNCTION()
+	void OnAIColliderEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+	                            UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	UFUNCTION()
+	void OnInnerAIColliderBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+	                                   UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
+	                                   const FHitResult& SweepResult);
+
+	UFUNCTION()
+	void OnInnerAIColliderEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+	                                 UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 	
 	/*
 	 * Ability System
@@ -145,6 +193,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Actions")
 	UInputAction* CancelCastAction;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Actions")
+	UInputAction* OptionsAction;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Input|Input Mappings")
 	UInputMappingContext* BaseInputMappingContext;
 
@@ -155,6 +206,16 @@ public:
 	int32 BaseMappingPriority = 0;
 
 	UEnhancedInputLocalPlayerSubsystem* Subsystem;
+
+
+	//Pause Menu
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pause Menu")
+	TSubclassOf<UUserWidget> PauseMenuBP;
+
+	UUserWidget* PauseMenu;
+		
+	UFUNCTION()
+	void Pause();
 	
 	/**
 	 * World Cursor
@@ -189,10 +250,23 @@ public:
 	void TookDamage() const { HeroManagerComponent->TookDamage(); };
 
 	UFUNCTION()
+	void TookKillVolumeDamage () const { HeroManagerComponent->KillVolumeDamage(); };
+
+	UFUNCTION()
 	void GainXP(const int32 XP) const { HeroManagerComponent->AddXP(XP); };
+
+	UFUNCTION()
+	void SetSpawnPoint(APSpawnPoint* SpawnPoint) const { HeroManagerComponent->SetSpawnPoint(SpawnPoint); };
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Niagara")
 	UNiagaraSystem* DashEffect;
+
+	//Crystal gaining
+	UPROPERTY()
+	bool bHasKeyCrystal;
+
+	UFUNCTION()
+	void SetHasKeyCrystal(bool bHasCrystal) { bHasKeyCrystal = bHasCrystal; };
 
 	/*
 	 * References
@@ -272,6 +346,9 @@ protected:
 	/* Weapon Arm Toggle */
 	void ToggleWeaponArm();
 
+	/** Start Jumping */
+	void JumpInternals();
+
 private:
 
 	/** Trace Channel for Mouse Aiming */
@@ -296,4 +373,6 @@ private:
 	//Dash Variables
 	FVector DashVector;
 	float HeldTime = 0.0f;
+
+	float FootstepCounter = 0.0f;
 };

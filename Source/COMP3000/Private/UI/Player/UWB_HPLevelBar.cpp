@@ -16,6 +16,7 @@ void UUWB_HPLevelBar::NativeConstruct() {
 	
 	MainCharacterRef->HeroManagerComponent->HeroSwappedEvent.AddDynamic(this, &UUWB_HPLevelBar::HeroSwapped);
 	MainCharacterRef->HeroManagerComponent->LevelUpEvent.AddDynamic(this, &UUWB_HPLevelBar::ReevaluateLevelText);
+	MainCharacterRef->HeroManagerComponent->LevelUpEvent.AddDynamic(this, &UUWB_HPLevelBar::ReevaluateXPBar);
 	MainCharacterRef->HeroManagerComponent->XPChangedEvent.AddDynamic(this, &UUWB_HPLevelBar::ReevaluateXPBarAnimated);
 	MainCharacterRef->HeroManagerComponent->HPChangedEvent.AddDynamic(this, &UUWB_HPLevelBar::ReevaluateHealthIcons);
 

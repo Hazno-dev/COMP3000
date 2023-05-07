@@ -128,6 +128,14 @@ void UPlayerBaseAbilities::SetDashDuration(const float NewDuration) {
 	DashAbilityInstance->AbilityDuration = NewDuration;
 }
 
+void UPlayerBaseAbilities::SetDashVFX(UNiagaraSystem* Explosion, UNiagaraSystem* Trail) {
+	if (DashAbilityInstance == nullptr) return;
+	if (AAB_Dash* DashAbilityRef = Cast<AAB_Dash>(DashAbilityInstance)) {
+		DashAbilityRef->DashExplosiveVFX = Explosion;
+		DashAbilityRef->DashTrailVFX = Trail;
+	}
+}
+
 void UPlayerBaseAbilities::SetAbility1Instance(AAbilityBase* NewAbility) {
 	if (Ability1Instance == NewAbility) return;
 

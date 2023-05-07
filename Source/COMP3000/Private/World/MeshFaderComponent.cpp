@@ -11,7 +11,6 @@ UMeshFaderComponent::UMeshFaderComponent()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
-	RegisterComponent();
 	PrimaryComponentTick.Target = this;
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.SetTickFunctionEnable(true);
@@ -26,6 +25,8 @@ UMeshFaderComponent::UMeshFaderComponent()
 void UMeshFaderComponent::BeginPlay()
 {
 	Super::BeginPlay();
+
+	RegisterComponent();
 
 	PrimaryComponentTick.RegisterTickFunction(GetComponentLevel());
 

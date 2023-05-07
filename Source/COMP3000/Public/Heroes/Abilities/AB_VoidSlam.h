@@ -29,6 +29,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AbilityData")
 	TSubclassOf<AProjectileBase> ProjectileClass;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundCue* StartSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundAttenuation* StartAttenuation;
+
 private:
 	FTimerHandle ArrowSpawnTimerHandle;
 

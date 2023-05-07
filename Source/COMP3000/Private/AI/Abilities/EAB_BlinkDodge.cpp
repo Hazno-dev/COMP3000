@@ -7,6 +7,7 @@
 #include "AI/BaseAICharacter.h"
 #include "EnvironmentQuery/EnvQueryInstanceBlueprintWrapper.h"
 #include "NiagaraFunctionLibrary.h"
+#include "Kismet/GameplayStatics.h"
 
 void AEAB_BlinkDodge::BeginAbility() {
 	Super::BeginAbility();
@@ -48,6 +49,9 @@ void AEAB_BlinkDodge::EndAbility() {
 void AEAB_BlinkDodge::Teleport() {
 	AICharacterRef->SetActorLocation(PositionToMoveTo, false);
 	if (IsValid(BlinkVFX)) UNiagaraFunctionLibrary::SpawnSystemAtLocation(WorldRef, BlinkVFX, AICharacterRef->GetActorLocation(), FRotator::ZeroRotator, FVector::OneVector);
+
+	if (BlinkSound && BlinkAttenuation) UGameplayStatics::PlaySoundAtLocation(WorldRef, BlinkSound, AICharacterRef->GetActorLocation(), FRotator::ZeroRotator, .4f, 1.f, 0.f, BlinkAttenuation);
+	else if (BlinkSound) UGameplayStatics::PlaySoundAtLocation(WorldRef, BlinkSound, AICharacterRef->GetActorLocation(), FRotator::ZeroRotator, .4f, 1.f);
 }
 
 

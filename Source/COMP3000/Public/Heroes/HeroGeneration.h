@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Abilities/AbilityBase.h"
 #include "GameFramework/Actor.h"
+#include "NiagaraSystem.h"
 #include "Heroes/Abilities/AbilityData.h"
 #include "HeroGeneration.generated.h"
 
@@ -45,9 +46,15 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float DashDuration;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UNiagaraSystem* DashTrailVFX;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TArray<TSubclassOf<class AAbilityBase>> ValidAbilities;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UNiagaraSystem* SwapFX;
 
 	FHeroStats()
 	{
@@ -106,7 +113,11 @@ public:
 
 	UPROPERTY()
 	AAbilityBase* UltimateAbilityInstanceOG;
-	
+
+	//Icon
+	UPROPERTY()
+	UTexture2D* Thumbnail;
+
 	//Mesh Data
 	//Gender Data
 	//True = Male, False = Female

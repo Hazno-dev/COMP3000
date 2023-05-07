@@ -5,6 +5,7 @@
 
 #include "AI/BaseAICharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 AEAbilityBase::AEAbilityBase()
@@ -42,7 +43,7 @@ void AEAbilityBase::CustomBeginPlay(ABaseAICharacter* AICharacter, UWorld* World
 void AEAbilityBase::CustomTick(float DeltaTime) {
 	Super::Tick(DeltaTime);
 
-	if (bIsAbilityPlaying) {
+	if (bIsAbilityPlaying && IsValid(AICharacterRef)) {
 		PlayingAbility();
 	}
 	
@@ -135,6 +136,10 @@ void AEAbilityBase::CoreInterruptAbility() {
 		InterruptAbility();
 		if (IsValid(FadeTextClass)) WorldRef->SpawnActor<AFadeText>(FadeTextClass,
 			AICharacterRef->GetActorLocation() + FVector(0,0,50), FRotator::ZeroRotator);
+
+		if (InterruptedSound && InterruptedAttenuation) UGameplayStatics::PlaySoundAtLocation(GetWorld(), InterruptedSound, AICharacterRef->GetActorLocation(), FRotator::ZeroRotator, .5f, 1.0f, 0.0f, InterruptedAttenuation);
+		else if (InterruptedSound) UGameplayStatics::PlaySoundAtLocation(GetWorld(), InterruptedSound, AICharacterRef->GetActorLocation(), FRotator::ZeroRotator, .5f, 1.0f);
+	
 	}
 }
 

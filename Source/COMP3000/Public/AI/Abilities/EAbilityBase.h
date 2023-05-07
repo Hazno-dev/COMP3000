@@ -8,6 +8,7 @@
 #include "GameFramework/Actor.h"
 #include "Heroes/Abilities/AbilityData.h"
 #include "World/FadeText.h"
+#include "Sound/SoundCue.h"
 #include "EAbilityBase.generated.h"
 
 class ABaseAICharacter;
@@ -87,6 +88,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
 	float AbilityDuration;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundCue* InterruptedSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundAttenuation* InterruptedAttenuation;
 
 	UFUNCTION(BlueprintCallable, Category = "Ability Data")
 	void SetAbilityRechargeDuration(float Cooldown) { AbilityRechargeDuration = Cooldown; };

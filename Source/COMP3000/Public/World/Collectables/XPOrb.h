@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/Actor.h"
+#include "Sound/SoundCue.h"
 #include "XPOrb.generated.h"
 
 UCLASS()
@@ -28,6 +29,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 	TObjectPtr<USphereComponent> OuterSphereCollider;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundCue* OrbPickupSound;
 
 	//Arc Functions
 	//Launch Orb towards target pos

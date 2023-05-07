@@ -72,6 +72,9 @@ public:
 	void SetDashDuration(const float NewDuration);
 
 	UFUNCTION()
+	void SetDashVFX(UNiagaraSystem* Explosion, UNiagaraSystem* Trail);
+
+	UFUNCTION()
 	void SetAbility1Instance(AAbilityBase* NewAbility);
 
 	UFUNCTION()

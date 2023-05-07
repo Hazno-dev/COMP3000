@@ -4,6 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "DungeonGeneration/Prefabinator.h"
+#include "AI/EnemyData.h"
+#include "AI/EnemySpawnPoint.h"
+#include "AI/AIGroupManager.h"
 #include "DungeonGeneration/GenerationEnums.h"
 #include "DungeonGeneration/TileBase.h"
 #include "DungeonGenerationV2Helpers.generated.h"
@@ -61,12 +65,13 @@ public:
 	 * @param MaxCorridorsInRow The maximum number of corridors in a row
 	 * @param TargetLocation The target location in the dungeon
 	 * @param MinDistanceFromTarget The minimum distance from the target location
+	 * @param bSkipFirst Whether or not to skip the first location found by backtracking
 	 * 
 	 * @return The next random location found by backtracking
 	 */
 	UFUNCTION()
 	static FVector2D BacktrackerRandom(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D& CurrentLocation, FRandomStream& Seed, int32 MaxCorridorsInRow = 2,
-	    FVector2D TargetLocation = FVector2D(0,0), float MinDistanceFromTarget = 0);
+	    FVector2D TargetLocation = FVector2D(0,0), float MinDistanceFromTarget = 0, bool bSkipFirst = false);
 
 	/** Branches out random paths from the existing dungeon layout to create a more open and dynamic level.
 	 * The function picks random points on the generated layout and tries to branch out a random number of times.
@@ -79,7 +84,7 @@ public:
 	 * @param BranchLength The length of the branches to be added to the dungeon
 	 */
 	UFUNCTION()
-	static void BranchOutRandomPaths(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D& CurrentLocation, FRandomStream& Seed, int32 MaxCorridorsInRow,
+	static bool BranchOutRandomPaths(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D& CurrentLocation, FRandomStream& Seed, int32 MaxCorridorsInRow,
 	    int32 BranchLength);
 
 
@@ -102,6 +107,32 @@ public:
     UFUNCTION()
     static ATileBase* SpawnTile(UClass* TileToSpawn, FVector2D Location, ECardinalPoints Direction, UWorld* World);
 
+	
+	// World Getters */
+	
+	/* Get all prefabinators in a tile streaming level */
+	UFUNCTION()
+	static bool GetPrefabinatorsInLevel(UWorld* InWorld, TArray<class APrefabinator*>& OutPrefabinators);
+
+	/* Get all enemyspawnpoints in a tile streaming level */
+	UFUNCTION()
+	static bool GetEnemySpawnPointsInLevel(UWorld* InWorld, TArray<class AEnemySpawnPoint*>& OutEnemySpawnPoints);
+
+	/* Get all groupmanagers in a tile streaming level */
+	UFUNCTION()
+	static bool GetGroupManagersInLevel(UWorld* InWorld, TArray<class AAIGroupManager*>& OutGroupManagers);
+
+	/* Get all Spawnpoints in the world */
+	UFUNCTION()
+	static bool GetSpawnPointsInWorld(UWorld* InWorld, TArray<class APSpawnPoint*>& OutSpawnPoints);
+
+	/* Get all levelgeneratorsV2 in the world */
+	UFUNCTION()
+	static bool GetLevelGeneratorsInWorld(UWorld* InWorld, TArray<class ALevelGeneratorV2*>& OutLevelGenerators);
+
+	/* Get all lootcrates in the world */
+	UFUNCTION()
+	static bool GetLootCratesInWorld(UWorld* InWorld, TArray<class ALootCrate*>& OutLootCrates);
 	
 	
     // Tile Layout Helpers */
@@ -137,11 +168,12 @@ public:
 	 *
 	 * @param TileLayout The current layout of the dungeon
 	 * @param TargetLocation The target location in the dungeon
+	 * @param FinalDirection The final direction of the path
 	 * 
 	 * @return True if a path was successfully created, false otherwise
 	 */
 	UFUNCTION()
-	static bool CreatePathToTarget(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D TargetLocation);
+	static bool CreatePathToTarget(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D TargetLocation, TEnumAsByte<ECardinalPoints> FinalDirection = North);
 
 	/** Executes the A* pathfinding algorithm and returns an array of FVector2D representing the path.
 	 *

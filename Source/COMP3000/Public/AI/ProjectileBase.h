@@ -8,8 +8,10 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Niagara/Public/NiagaraComponent.h"
 #include "Niagara/Public/NiagaraFunctionLibrary.h"
+#include "Sound/SoundCue.h"
 #include "ProjectileBase.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnProjectileHit);
 UCLASS()
 class COMP3000_API AProjectileBase : public AActor
 {
@@ -26,12 +28,22 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	virtual void LifeSpanExpired() override;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UProjectileMovementComponent* ProjectileMovement;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float Damage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundCue* ImpactSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundAttenuation* ImpactAttenuation;
+
+	FOnProjectileHit OnProjectileHit;
 	
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))

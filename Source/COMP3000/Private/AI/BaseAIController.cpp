@@ -7,7 +7,9 @@
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Engine/Engine.h"
+#include "Navigation/PathFollowingComponent.h"
 #include "Perception/AIPerceptionComponent.h"
+#include "Perception/AISense_Sight.h"
 
 ABaseAIController::ABaseAIController() {
 
@@ -29,14 +31,20 @@ void ABaseAIController::BeginPlay() {
 	Super::BeginPlay();
 
 	if (IsValid(AIBehaviourTree.Get())) {
-
 		RunBehaviorTree((AIBehaviourTree.Get()));
 		AIBehaviourTreeComponent->StartTree(*AIBehaviourTree.Get());
-		
-	} else  UE_LOG(LogTemp, Error, TEXT("AIBehaviourTree is not set"));
-	
+	} else {
+		UE_LOG(LogTemp, Error, TEXT("AIBehaviourTree is not set"));
+	}
+
 	AIPerceptionComponent->OnTargetPerceptionUpdated.AddDynamic(this, &ABaseAIController::OnTargetPerceptionUpdated);
+	AIPerceptionComponent->SetComponentTickInterval(0.3f);
+
+	// Set the initial tick interval for the BehaviorTreeComponent
+	AIBehaviourTreeComponent->SetComponentTickInterval(0.5f);
+	GetPathFollowingComponent()->SetComponentTickInterval(0.5f);
 }
+
 
 void ABaseAIController::OnPossess(APawn* InPawn) {
 	Super::OnPossess(InPawn);
@@ -52,7 +60,13 @@ void ABaseAIController::OnTargetPerceptionUpdated(AActor* Actor, FAIStimulus Sti
 	ABaseAICharacter* AICharacter = Cast<ABaseAICharacter>(GetPawn());
 	if (IsValid(AICharacter)) AICharacter->SetTarget(Actor);
 
-	PerceptionComponent->SetActive(false);
-	PerceptionComponent->OnTargetPerceptionUpdated.RemoveDynamic(this, &ABaseAIController::OnTargetPerceptionUpdated);
+	// Disable the perception component after the player is detected
+	AIPerceptionComponent->SetSenseEnabled(UAISense_Sight::StaticClass(), false);
+	AIPerceptionComponent->OnTargetPerceptionUpdated.RemoveDynamic(this, &ABaseAIController::OnTargetPerceptionUpdated);
+
+	// Update the tick interval for the BehaviorTreeComponent when the player is detected
+	AIBehaviourTreeComponent->SetComponentTickInterval(0.0f);
+	GetPathFollowingComponent()->SetComponentTickInterval(0.01f);
+
 	
 }

@@ -13,6 +13,9 @@
 #include "Components/StateTreeComponent.h"
 #include "EnvironmentQuery/EnvQuery.h"
 #include "GameFramework/Character.h"
+#include "Heroes/BaseAudioManager.h"
+#include "Interfaces/AIActivationInterface.h"
+#include "Sound/SoundCue.h"
 #include "BaseAICharacter.generated.h"
 
 class ABaseAIController;
@@ -35,7 +38,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FHealthChangedEvent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FDetectedEvent);
 
 UCLASS()
-class COMP3000_API ABaseAICharacter : public ACharacter
+class COMP3000_API ABaseAICharacter : public ACharacter, public IAIActivationInterface
 {
 	GENERATED_BODY()
 
@@ -43,8 +46,13 @@ public:
 	// Sets default values for this character's properties
 	ABaseAICharacter();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
-	AAIGroupManager* GroupManager;
+	virtual void ActivateAI() override;
+	virtual void DeactivateAI() override;
+	virtual void InnerAIActivation() override;
+	virtual void InnerAIDeactivation() override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	TWeakObjectPtr<AAIGroupManager> GroupManager;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Projectile")
 	UProjectileSpawner* ProjectileSpawner;
@@ -54,6 +62,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
 	TObjectPtr<UEnemyStatusEffectSystem> EnemyStatusEffectSystemComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
+	TObjectPtr<UBaseAudioManager> BaseAudioManagerComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
 	UWidgetComponent* StatusBar;
@@ -145,7 +156,9 @@ public:
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-	AAIGroupManager* GetGroupManager() const {if(!IsValid(GroupManager)) return nullptr; return GroupManager;};
+
+	void SetGroupManager(AAIGroupManager* NewGroupManager) {GroupManager = NewGroupManager;};
+	TWeakObjectPtr<AAIGroupManager> GetGroupManager() const {if(!GroupManager.IsValid()) return nullptr; return GroupManager;};
 
 	UFUNCTION(BlueprintCallable)
 	void SummonProjectile(int32 NumberOfProjectiles);

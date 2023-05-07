@@ -3,6 +3,8 @@
 
 #include "Heroes/Abilities/AB_VoidSlam.h"
 
+#include "Kismet/GameplayStatics.h"
+
 
 void AAB_VoidSlam::BeginAbility() {
 	Super::BeginAbility();
@@ -16,6 +18,9 @@ void AAB_VoidSlam::BeginAbility() {
 	float SpawnInterval = FMath::RandRange(0.1f, 0.2f);
 	WorldRef->GetTimerManager().SetTimer(ArrowSpawnTimerHandle, this, &AAB_VoidSlam::SpawnArrows, SpawnInterval, true);
 
+	if (StartSound && StartAttenuation) UGameplayStatics::PlaySoundAtLocation(WorldRef, StartSound, CastLocation, FRotator::ZeroRotator, 0.5f, 1.0f, 0.0f, StartAttenuation);
+	else if (StartSound) UGameplayStatics::PlaySoundAtLocation(WorldRef, StartSound, CastLocation, FRotator::ZeroRotator, 0.5f, 1.0f);
+	
 }
 
 void AAB_VoidSlam::PlayingAbility() {

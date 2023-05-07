@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "NiagaraSystem.h"
 #include "Heroes/Abilities/AbilityBase.h"
+#include "Sound/SoundCue.h"
 #include "AB_Dash.generated.h"
 
 /**
@@ -39,10 +40,22 @@ public:
 	virtual void EndAbility() override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
-	TArray<UNiagaraSystem*> DashTrailVFX;
+	USoundAttenuation* DashSoundAttenuation;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
+	USoundCue* DashSoundStart;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
-	TArray<UNiagaraSystem*> DashExplosiveVFX;
+	USoundCue* DashSoundEnd;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
+	USoundCue* DashSoundTrail;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
+	UNiagaraSystem* DashTrailVFX;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
+	UNiagaraSystem* DashExplosiveVFX;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dash")
 	TArray<FDashBones> DashBones;

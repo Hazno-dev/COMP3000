@@ -8,6 +8,7 @@
 #include "EnvironmentQuery/EnvQueryInstanceBlueprintWrapper.h"
 #include "EnvironmentQuery/EnvQueryManager.h"
 #include "EnvironmentQuery/EnvQuery.h"
+#include "Sound/SoundCue.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
 #include "EAB_BlinkDodge.generated.h"
 
@@ -34,6 +35,12 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, Category = "EQS")
 	UEnvQuery* RandomNearPlayerEQS;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundCue* BlinkSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundAttenuation* BlinkAttenuation;
 
 private:
 	UPROPERTY()

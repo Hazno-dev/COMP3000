@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "AI/Abilities/EAbilityBase.h"
 #include "Heroes/Abilities/StatusEffectBase.h"
+#include "Sound/SoundCue.h"
 #include "EAB_Charge.generated.h"
 
 /**
@@ -30,6 +31,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AbilityData")
 	TSubclassOf<UStatusEffectBase> StunnedStatusEffect;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundCue* ChargeStartSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundAttenuation* ChargeStartAttenuation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	TArray<USoundCue*> ChargeFootsteps;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundAttenuation* ChargeFootstepsAttenuation;
+
 	UFUNCTION()
 	void OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 	
@@ -48,5 +61,7 @@ private:
 	
 	bool bOriginalRVOEnabled;
 	float OriginalAvoidanceWeight;
+
+	float FootstepCounter = 0;
 	
 };

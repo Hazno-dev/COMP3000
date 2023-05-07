@@ -6,6 +6,7 @@
 
 #include "AI/BaseAICharacter.h"
 #include "Helpers/TraceHelpers.h"
+#include "Kismet/GameplayStatics.h"
 
 void AAEB_SummonRitual::BeginAbility() {
 	Super::BeginAbility();
@@ -41,6 +42,9 @@ void AAEB_SummonRitual::BeginAbility() {
 	//Status Effect (Visual Only)
 	if (IsValid(SummonStatusEffect)) SummonStatusEffectRef = AICharacterRef->EnemyStatusEffectSystemComponent->AddStatusEffect(SummonStatusEffect, AbilityDuration);
 
+	if (SummonSound && SummonAttenuation) UGameplayStatics::PlaySoundAtLocation(WorldRef, SummonSound, AICharacterRef->GetActorLocation(), FRotator::ZeroRotator, .3f, 1.f, 0.f, SummonAttenuation);
+	else if (SummonSound) UGameplayStatics::PlaySoundAtLocation(WorldRef, SummonSound, AICharacterRef->GetActorLocation(), FRotator::ZeroRotator, .3f, 1.f);
+	
 	//Execute EQS Query
 	QueryRequest.Execute(EEnvQueryRunMode::AllMatching, QueryFinishedDelegate);
 }
@@ -59,7 +63,7 @@ void AAEB_SummonRitual::InterruptAbility() {
 	Super::InterruptAbility();
 
 	if (IsValid(SummonStatusEffectRef)) AICharacterRef->EnemyStatusEffectSystemComponent->RevokeStatusEffect(SummonStatusEffectRef);
-	
+
 	for (UNiagaraComponent* VFX : SpawnedVFX) {
 		if (IsValid(VFX)) {
 			VFX->Deactivate();
@@ -106,6 +110,9 @@ void AAEB_SummonRitual::Summon() {
 				SpawnedVFX.Add( UNiagaraFunctionLibrary::SpawnSystemAtLocation(WorldRef,
 			SummonedActorVFX, GroundLocation, FRotator::ZeroRotator, FVector::OneVector));
 		}
+
+		if (LightningSound && LightningAttenuation) UGameplayStatics::PlaySoundAtLocation(WorldRef, LightningSound, SpawnedActor->GetActorLocation(), FRotator::ZeroRotator, .25f, 1.f, 0.f, LightningAttenuation);
+		else if (LightningSound) UGameplayStatics::PlaySoundAtLocation(WorldRef, LightningSound, SpawnedActor->GetActorLocation(), FRotator::ZeroRotator, .25f, 1.f);
 		
 	}
 

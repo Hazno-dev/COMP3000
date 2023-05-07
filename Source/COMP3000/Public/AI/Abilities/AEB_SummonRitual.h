@@ -8,6 +8,7 @@
 #include "EnvironmentQuery/EnvQuery.h"
 #include "EnvironmentQuery/EnvQueryManager.h"
 #include "Heroes/Abilities/StatusEffectBase.h"
+#include "Sound/SoundCue.h"
 #include "AEB_SummonRitual.generated.h"
 
 /**
@@ -46,6 +47,18 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AbilityData")
 	TSubclassOf<UStatusEffectBase> SummonStatusEffect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundCue* SummonSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundAttenuation* SummonAttenuation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundCue* LightningSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound")
+	USoundAttenuation* LightningAttenuation;
 
 	UPROPERTY(EditDefaultsOnly, Category = "EQS")
 	TObjectPtr<UEnvQuery> SummonSelectionEQS;

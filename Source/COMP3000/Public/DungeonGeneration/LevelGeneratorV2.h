@@ -8,6 +8,9 @@
 #include "GameFramework/Actor.h"
 #include "LevelGeneratorV2.generated.h"
 
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FTileBaseSpawned, ALevelGeneratorV2*, InGenerator, TArray<ATileBase*>, InSpawnedTiles);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAllLevelsGenerated);
 UCLASS()
 class COMP3000_API ALevelGeneratorV2 : public AActor
 {
@@ -17,8 +20,9 @@ public:
 	// Sets default values for this actor's properties
 	ALevelGeneratorV2();
 	
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-
+#endif
 	
 	//Generated Layout
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Layout")
@@ -65,6 +69,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	TEnumAsByte<ECardinalPoints> StartDirection;
 
+	/** Direction To End */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data", meta = (EditCondition = "Mode == EGeneratorMode::Hybrid || Mode == EGeneratorMode::Fixed"))
+	TEnumAsByte<ECardinalPoints> EndDirection;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
 	bool bOutBranching;
 
@@ -76,9 +84,28 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data", meta = (EditCondition = "bOutBranching", ClampMin = 1))
 	int32 OutBranchingMax;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	bool bHasKeyTile;
+
+	/* Data Table of enemies */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
+	UDataTable* EnemyDataTable;
 	
 	UFUNCTION()
 	void ResetAndRegenerate();
+
+	UPROPERTY()
+	TArray<ATileBase*> SpawnedTiles;
+
+	UFUNCTION()
+	TArray<FEnemyData> GetEnemyData() const { return EnemyData; }
+
+	UFUNCTION()
+	FRandomStream GetSeedStream() const { return SeedStream; }
+
+	FTileBaseSpawned OnTileBaseSpawned;
+	FAllLevelsGenerated OnAllLevelsGenerated;
 
 protected:
 	// Called when the game starts or when spawned
@@ -102,7 +129,10 @@ private:
 	void GenerateDungeonFixed();
 
 	UFUNCTION()
-	void GenerateBranches();
+	bool GenerateBranches();
+
+	UFUNCTION()
+	bool SpawnKeyTile();
 
 	UFUNCTION()
 	void SpawnDungeonTiles();
@@ -114,19 +144,21 @@ private:
 	void UpdateOffTilesFromWorldComponents();
 
 	UFUNCTION()
-	void TileLoaded();
+	void TileLoaded(ATileBase* Tile);
 
-	UFUNCTION()
-	void AllTilesLoaded();
+	//UFUNCTION()
+	//void AllTilesLoaded();
 	
 	FRandomStream SeedStream;
 	FVector2D CurrentLocation;
-	TArray<ATileBase*> SpawnedTiles;
 	TArray<FVector2D> OffTiles;
+	TArray<FEnemyData> EnemyData;
 
 	//Tile loaded count
 	int32 MaxLoadedTilesCount;
-	int32 LoadedTilesCount ;
+	int32 LoadedTilesCount;
+
+	int32 SpawnedEnemyCount;
 	
 	/** Vectors In Here Won't Be Considered For Generation */
 	

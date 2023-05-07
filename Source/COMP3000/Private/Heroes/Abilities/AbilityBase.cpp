@@ -18,6 +18,7 @@ AAbilityBase::AAbilityBase() {
 	bIsCasting = false;
 	RangeCastSize = FVector(1.f);
 	bIsWorldCursorVisible = true;
+	Damage = 0.f;
 	
 }
 

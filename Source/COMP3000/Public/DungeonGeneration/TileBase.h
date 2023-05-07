@@ -4,11 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "GenerationEnums.h"
+#include "AI/EnemyData.h"
+#include "AI/EnemySpawnPoint.h"
 #include "GameFramework/Actor.h"
 #include "LevelInstance/LevelInstanceActor.h"
 #include "Engine/LevelStreamingDynamic.h"
 #include "TileBase.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLevelCustomLoadedDelegate, ATileBase*, Tile);
 UCLASS()
 class COMP3000_API ATileBase : public AActor
 {
@@ -37,6 +40,18 @@ public:
 	int32 MaxInstances;
 	
 	UPROPERTY()
+	int32 MinMinionsToSpawn;
+
+	UPROPERTY()
+	int32 MinEliteToSpawn;
+
+	UPROPERTY()
+	int32 MaxMinionsToSpawn;
+
+	UPROPERTY()
+	int32 MaxEliteToSpawn;
+	
+	UPROPERTY()
 	ULevelStreamingDynamic* LevelInstance;
 
 	UPROPERTY(EditAnywhere, Category = Level, meta = (NoCreate, DisplayName="Level"))
@@ -49,14 +64,20 @@ public:
 	UPROPERTY()
 	bool bIsLevelLoaded;
 
-	UFUNCTION()
-	void SetSeedStream(FRandomStream& InSeedStream) { SeedStream = InSeedStream; }
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Tile Data")
+	TArray<AEnemySpawnPoint*> TileEnemySpawnPoints;
+
+	UPROPERTY(BlueprintAssignable, Category = "Tile Events")
+	FOnLevelCustomLoadedDelegate OnLevelLoadedCustom;
 
 	UFUNCTION()
-	void SpawnPrefabinatorsRandomly();
+	void TileLoaded();
 
 	UFUNCTION()
 	void SetupDelegate();
+
+	UFUNCTION()
+	int32 SpawnInitialEnemies(TArray<FEnemyData> EnemyData, FRandomStream SeedStream);
 	
 protected:
 	// Called when the game starts or when spawned
@@ -65,12 +86,4 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-
-private:
-	FRandomStream SeedStream;
-
-
-
-
-
 };

@@ -105,6 +105,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data", meta = (EditCondition = "bRangeCastAbility"))
 	bool bIsWorldCursorVisible;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability Data")
+	float Damage;
+
 	UPROPERTY()
 	AWorldCursor* SpawnedWorldCursorRef;
 

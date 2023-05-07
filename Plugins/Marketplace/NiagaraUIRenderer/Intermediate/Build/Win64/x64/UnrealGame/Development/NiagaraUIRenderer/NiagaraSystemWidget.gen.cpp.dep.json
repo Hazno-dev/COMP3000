@@ -1,0 +1,34 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "c:\\users\\callu\\documents\\comp3000 5.1\\plugins\\marketplace\\niagarauirenderer\\intermediate\\build\\win64\\unrealgame\\inc\\niagarauirenderer\\uht\\niagarasystemwidget.gen.cpp",
+        "ProvidedModule": "",
+        "PCH": "c:\\users\\callu\\documents\\comp3000 5.1\\intermediate\\build\\win64\\x64\\comp3000\\development\\engine\\sharedpch.engine.shadowerrors.inclorderunreal5_0.h.pch",
+        "Includes": [
+            "c:\\users\\callu\\documents\\comp3000 5.1\\plugins\\marketplace\\niagarauirenderer\\intermediate\\build\\win64\\x64\\unrealgame\\development\\niagarauirenderer\\definitions.niagarauirenderer.h",
+            "c:\\users\\callu\\documents\\comp3000 5.1\\plugins\\marketplace\\niagarauirenderer\\source\\niagarauirenderer\\public\\niagarasystemwidget.h",
+            "c:\\users\\callu\\documents\\comp3000 5.1\\plugins\\marketplace\\niagarauirenderer\\source\\niagarauirenderer\\public\\niagarawidgetproperties.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\source\\runtime\\umg\\public\\components\\widget.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\source\\runtime\\umg\\public\\fieldnotification\\fieldnotificationdeclaration.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\source\\runtime\\umg\\public\\fieldnotification\\fieldid.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\source\\runtime\\umg\\public\\fieldnotification\\fieldvariant.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\intermediate\\build\\win64\\unrealgame\\inc\\umg\\uht\\fieldid.generated.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\source\\runtime\\umg\\public\\fieldnotification\\iclassdescriptor.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\source\\runtime\\umg\\public\\fieldnotification\\ifieldvaluechanged.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\intermediate\\build\\win64\\unrealgame\\inc\\umg\\uht\\ifieldvaluechanged.generated.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\source\\runtime\\umg\\public\\components\\visual.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\intermediate\\build\\win64\\unrealgame\\inc\\umg\\uht\\visual.generated.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\source\\runtime\\umg\\public\\components\\slatewrappertypes.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\intermediate\\build\\win64\\unrealgame\\inc\\umg\\uht\\slatewrappertypes.generated.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\source\\runtime\\umg\\public\\slate\\widgettransform.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\intermediate\\build\\win64\\unrealgame\\inc\\umg\\uht\\widgettransform.generated.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\source\\runtime\\umg\\public\\blueprint\\widgetnavigation.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\source\\runtime\\slatecore\\public\\types\\navigationmetadata.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\intermediate\\build\\win64\\unrealgame\\inc\\umg\\uht\\widgetnavigation.generated.h",
+            "c:\\program files\\epic games\\ue_5.2\\engine\\intermediate\\build\\win64\\unrealgame\\inc\\umg\\uht\\widget.generated.h",
+            "c:\\users\\callu\\documents\\comp3000 5.1\\plugins\\marketplace\\niagarauirenderer\\intermediate\\build\\win64\\unrealgame\\inc\\niagarauirenderer\\uht\\niagarasystemwidget.generated.h"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

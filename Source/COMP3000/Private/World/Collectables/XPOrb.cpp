@@ -4,6 +4,7 @@
 #include "World/Collectables/XPOrb.h"
 
 #include "MainCharacter.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 AXPOrb::AXPOrb()
@@ -13,7 +14,7 @@ AXPOrb::AXPOrb()
 
 	SphereMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SphereMesh"));
 	SphereMesh->SetupAttachment(RootComponent);
-	SphereMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	//SphereMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	InnerSphereCollider = CreateDefaultSubobject<USphereComponent>(TEXT("InnerSphereCollider"));
 	InnerSphereCollider->SetupAttachment(SphereMesh);
@@ -34,6 +35,7 @@ AXPOrb::AXPOrb()
 void AXPOrb::BeginPlay()
 {
 	Super::BeginPlay();
+	SphereMesh->SetUseCCD(true);
 	
 }
 
@@ -42,7 +44,7 @@ void AXPOrb::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	
-	if (IsValid(Player)) MoveTowardsPlayer(25.0f);
+	if (IsValid(Player)) MoveTowardsPlayer(30.0f);
 
 	if (MinimumLifeTime <= .3f) {
 		MinimumLifeTime += DeltaTime;
@@ -80,7 +82,10 @@ void AXPOrb::MoveTowardsPlayer(float InForce) {
 
 void AXPOrb::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
                             int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult) {
-	
+
+	if (!IsValid(OtherActor)) return;
+	if (!OtherActor->IsA(AMainCharacter::StaticClass())) return;
+		
 	Player = Cast<AMainCharacter>(OtherActor);
 	if (!IsValid(Player)) return;
 
@@ -93,6 +98,7 @@ void AXPOrb::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherAc
 	
 	if (OverlappedComp == InnerSphereCollider) {
 		if (XPValue > 0) Player->GainXP(XPValue);
+		UGameplayStatics::PlaySound2D(GetWorld(), OrbPickupSound, 0.4f);
 		Destroy();
 	}
 }

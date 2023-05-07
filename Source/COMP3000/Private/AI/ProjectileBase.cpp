@@ -5,7 +5,9 @@
 
 #include "MainCharacter.h"
 #include "AI/BaseAICharacter.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "World/Collectables/LootCrate.h"
 
 // Sets default values
 AProjectileBase::AProjectileBase()
@@ -41,11 +43,25 @@ void AProjectileBase::Tick(float DeltaTime)
 
 }
 
+void AProjectileBase::LifeSpanExpired() {
+
+
+	OnProjectileHit.Broadcast();
+	Destroy();
+}
+
 void AProjectileBase::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-	FVector NormalImpulse, const FHitResult& Hit) {
+                            FVector NormalImpulse, const FHitResult& Hit) {
 
  	FRotator Rotation = UKismetMathLibrary::MakeRotFromX(Hit.ImpactNormal);
 	if (IsValid(HitVFX)) UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), HitVFX, Hit.Location, Rotation);
+
+	if (ImpactSound && ImpactAttenuation) UGameplayStatics::PlaySoundAtLocation(GetWorld(), ImpactSound, Hit.Location, FRotator::ZeroRotator, 1.f, 1.f, 0.f, ImpactAttenuation);
+	else if (ImpactSound) UGameplayStatics::PlaySoundAtLocation(GetWorld(), ImpactSound, Hit.Location, FRotator::ZeroRotator, 1.f, 1.f, 0.f);
+
+	OnProjectileHit.Broadcast();
+	
+	this->Destroy();
 }
 
 void AProjectileBase::OnOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
@@ -54,7 +70,11 @@ void AProjectileBase::OnOverlap(UPrimitiveComponent* OverlappedComponent, AActor
 	FRotator Rotation = UKismetMathLibrary::MakeRotFromX(SweepResult.ImpactNormal);
 	if (IsValid(HitVFX)) UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), HitVFX, SweepResult.Location, Rotation);
 
+
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Damage: %f"), Damage));
+	
 	if (Damage > 0) {
+
 		if (ABaseAICharacter* AI = Cast<ABaseAICharacter>(OtherActor)) {
 			AI->ReceivedDamage(Damage, this->GetOwner());
 			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Hit AI")));
@@ -65,6 +85,17 @@ void AProjectileBase::OnOverlap(UPrimitiveComponent* OverlappedComponent, AActor
 		MainCharacterRef->TookDamage();
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Hit Player")));
 	}
+
+	if (ALootCrate* LootCrate = Cast<ALootCrate>(OtherActor)) {
+		LootCrate->OpenLootCrate();
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Hit LootCrate")));
+	}
+
+	
+	if (ImpactSound && ImpactAttenuation) UGameplayStatics::PlaySoundAtLocation(GetWorld(), ImpactSound, SweepResult.Location, FRotator::ZeroRotator, .4f, 1.f, 0.f, ImpactAttenuation);
+	else if (ImpactSound) UGameplayStatics::PlaySoundAtLocation(GetWorld(), ImpactSound, SweepResult.Location, FRotator::ZeroRotator, .4f, 1.f, 0.f);
+
+	OnProjectileHit.Broadcast();
 	
 	this->Destroy();
 }

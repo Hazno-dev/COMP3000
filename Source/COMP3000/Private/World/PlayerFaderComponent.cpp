@@ -58,7 +58,7 @@ void UPlayerFaderComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 
 	//Trace from player to camera
 	UKismetSystemLibrary::SphereTraceMulti(GetWorld(), TraceEnd, PlayerCameraLocation,
-		TraceSize, TraceType, true, IgnoredActors, DebugTraceType, HitResults,
+		TraceSize, TraceType, false, IgnoredActors, DebugTraceType, HitResults,
 		true, FLinearColor::Red, FLinearColor::Green, 0.09f);
 
 	//stores faders that need to be updated based on the trace results and angle checks

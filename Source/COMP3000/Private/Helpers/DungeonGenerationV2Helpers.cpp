@@ -3,11 +3,15 @@
 
 #include "Helpers/DungeonGenerationV2Helpers.h"
 
+#include "EngineUtils.h"
 #include "Components/BoxComponent.h"
+#include "DungeonGeneration/LevelGeneratorV2.h"
 #include "DungeonGeneration/OffTileArea.h"
+#include "World/PSpawnPoint.h"
+#include "World/Collectables/LootCrate.h"
 
 FVector2D UDungeonGenerationV2Helpers::FindNextLocationRandom(TMap<FVector2D, FTileInfo>& TileLayout,
-	FVector2D& CurrentLocation, FRandomStream& Seed, int32 MaxCorridorsInRow, FVector2D TargetLocation, float MinDistanceFromTarget, bool bUseFisherYates) {
+                                                              FVector2D& CurrentLocation, FRandomStream& Seed, int32 MaxCorridorsInRow, FVector2D TargetLocation, float MinDistanceFromTarget, bool bUseFisherYates) {
 
 	// Find valid locations and directions
 	TArray<FVector2D> ValidLocations;
@@ -73,13 +77,17 @@ FVector2D UDungeonGenerationV2Helpers::FindNextLocationSpecified(TMap<FVector2D,
 
 
 FVector2D UDungeonGenerationV2Helpers::BacktrackerRandom(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D& CurrentLocation, FRandomStream& Seed,
-	int32 MaxCorridorsInRow, FVector2D TargetLocation, float MinDistanceFromTarget) {
+	int32 MaxCorridorsInRow, FVector2D TargetLocation, float MinDistanceFromTarget, bool bSkipFirst) {
 
 	//if (TileLayout.Find(CurrentLocation)->Type == StartTile) return CurrentLocation;
 	
 	TArray<FVector2D> TileLocations = GetTileLayoutWithoutOffTiles(TileLayout);
 	int counter = GetTileCountWithoutOffTiles(TileLayout) - 1;
 	bool foundValidLocation = false;
+
+	if (bSkipFirst && counter > 3) {
+		counter--;
+	}
 
 	while (counter > 0 && !foundValidLocation) {
 		CurrentLocation = TileLocations[counter];
@@ -97,7 +105,7 @@ FVector2D UDungeonGenerationV2Helpers::BacktrackerRandom(TMap<FVector2D, FTileIn
 	return CurrentLocation;
 }
 
-void UDungeonGenerationV2Helpers::BranchOutRandomPaths(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D& CurrentLocation, FRandomStream& Seed,
+bool UDungeonGenerationV2Helpers::BranchOutRandomPaths(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D& CurrentLocation, FRandomStream& Seed,
 	int32 MaxCorridorsInRow, int32 BranchLength) {
 	
 	for (int32 j = 0; j < BranchLength; ++j) {
@@ -110,10 +118,10 @@ void UDungeonGenerationV2Helpers::BranchOutRandomPaths(TMap<FVector2D, FTileInfo
 			
 			UpdateTileDirections(TileLayout, CurrentLocation, NextLocation);
 			CurrentLocation = NextLocation;
-		} else {
-			break;
-		}
+		} else if (j == 0) return false;
 	}
+	
+	return true;
 }
 
 
@@ -210,9 +218,72 @@ ATileBase* UDungeonGenerationV2Helpers::SpawnTile(UClass* TileToSpawn, FVector2D
 	return nullptr;
 }
 
+bool UDungeonGenerationV2Helpers::GetPrefabinatorsInLevel(UWorld* InWorld,
+	TArray<APrefabinator*>& OutPrefabinators) {
+	int NumPrefabinators = 0;
+	for (TActorIterator<APrefabinator> It(InWorld); It; ++It)
+	{
+		OutPrefabinators.Add(*It);
+		NumPrefabinators++;
+	}
+	return NumPrefabinators > 0;
+}
+
+bool UDungeonGenerationV2Helpers::GetEnemySpawnPointsInLevel(UWorld* InWorld,
+	TArray<AEnemySpawnPoint*>& OutEnemySpawnPoints) {
+	int NumEnemySpawnPoints = 0;
+	for (TActorIterator<AEnemySpawnPoint> It(InWorld, AEnemySpawnPoint::StaticClass()); It; ++It)
+	{
+		OutEnemySpawnPoints.Add(*It);
+		NumEnemySpawnPoints++;
+	}
+	return NumEnemySpawnPoints > 0;
+}
+
+bool UDungeonGenerationV2Helpers::GetGroupManagersInLevel(UWorld* InWorld, TArray<AAIGroupManager*>& OutGroupManagers) {
+	int NumGroupManagers = 0;
+	for (TActorIterator<AAIGroupManager> It(InWorld, AAIGroupManager::StaticClass()); It; ++It)
+	{
+		OutGroupManagers.Add(*It);
+		NumGroupManagers++;
+	}
+	return NumGroupManagers > 0;
+}
+
+bool UDungeonGenerationV2Helpers::GetSpawnPointsInWorld(UWorld* InWorld, TArray<APSpawnPoint*>& OutSpawnPoints) {
+	int NumSpawnPoints = 0;
+	for (TActorIterator<APSpawnPoint> It(InWorld, APSpawnPoint::StaticClass()); It; ++It)
+	{
+		OutSpawnPoints.Add(*It);
+		NumSpawnPoints++;
+	}
+	return NumSpawnPoints > 0;
+}
+
+bool UDungeonGenerationV2Helpers::GetLevelGeneratorsInWorld(UWorld* InWorld,
+	TArray<ALevelGeneratorV2*>& OutLevelGenerators) {
+	int NumLevelGenerators = 0;
+	for (TActorIterator<ALevelGeneratorV2> It(InWorld, ALevelGeneratorV2::StaticClass()); It; ++It)
+	{
+		OutLevelGenerators.Add(*It);
+		NumLevelGenerators++;
+	}
+	return NumLevelGenerators > 0;
+}
+
+bool UDungeonGenerationV2Helpers::GetLootCratesInWorld(UWorld* InWorld, TArray<ALootCrate*>& OutLootCrates) {
+	int NumLootCrates = 0;
+	for (TActorIterator<ALootCrate> It(InWorld, ALootCrate::StaticClass()); It; ++It)
+	{
+		OutLootCrates.Add(*It);
+		NumLootCrates++;
+	}
+	return NumLootCrates > 0;
+}
+
 
 bool UDungeonGenerationV2Helpers::IsNextLocationCorridor(const TMap<FVector2D, FTileInfo>& TileLayout,
-														 FVector2D NextLocation, int32 MaxCorridorsInRow) {
+                                                         FVector2D NextLocation, int32 MaxCorridorsInRow) {
 
 	int32 CorridorCount = 0;
 
@@ -319,26 +390,23 @@ int32 UDungeonGenerationV2Helpers::GetTileCountWithoutOffTiles(TMap<FVector2D, F
 TArray<FVector2D> UDungeonGenerationV2Helpers::GetTileLayoutWithoutOffTiles(TMap<FVector2D, FTileInfo>& TileLayout, bool bIncludeStartTile) {
 	TArray<FVector2D> TileLayoutWithoutOffTiles;
 	TileLayout.GenerateKeyArray(TileLayoutWithoutOffTiles);
-	
-	for (int32 i = TileLayoutWithoutOffTiles.Num() - 1; i >= 0; ) {
-		bool bElementRemoved = false;
 
-		if (TileLayout[TileLayoutWithoutOffTiles[i]].Type == ETileType::OffTile) {
-			TileLayoutWithoutOffTiles.RemoveAt(i);
-			bElementRemoved = true;
+	TArray<FVector2D> FilteredTileLayout;
+
+	for (const FVector2D& TileLocation : TileLayoutWithoutOffTiles) {
+		if (TileLayout[TileLocation].Type == ETileType::OffTile) {
+			continue;
 		}
-		else if (TileLayout[TileLayoutWithoutOffTiles[i]].Type == ETileType::StartTile && !bIncludeStartTile) {
-			TileLayoutWithoutOffTiles.RemoveAt(i);
-			bElementRemoved = true;
+		else if (TileLayout[TileLocation].Type == ETileType::StartTile && !bIncludeStartTile) {
+			continue;
 		}
 
-		if (!bElementRemoved) {
-			--i;
-		}
+		FilteredTileLayout.Add(TileLocation);
 	}
-	
-	return TileLayoutWithoutOffTiles;
+
+	return FilteredTileLayout;
 }
+
 
 
 
@@ -434,7 +502,7 @@ void UDungeonGenerationV2Helpers::UpdateTileDirections(TMap<FVector2D, FTileInfo
 	
 }
 
-bool UDungeonGenerationV2Helpers::CreatePathToTarget(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D TargetLocation) {
+bool UDungeonGenerationV2Helpers::CreatePathToTarget(TMap<FVector2D, FTileInfo>& TileLayout, FVector2D TargetLocation, TEnumAsByte<ECardinalPoints> FinalDirection) {
 	// Create a TArray and sort tiles based on their distance to the target location
 	TArray<FVector2D> SortedTiles;
 	for (const auto& Tile : TileLayout) {
@@ -456,8 +524,6 @@ bool UDungeonGenerationV2Helpers::CreatePathToTarget(TMap<FVector2D, FTileInfo>&
 		// If a path is found, set up the entire path in the tile map and return true
 		if (Path.Num() > 0) {
 			
-
-			
 			for (int32 i = 0; i < Path.Num() - 1; ++i) {
 				FVector2D CurrentLocation = Path[i];
 				FVector2D NextLocation = Path[i + 1];
@@ -474,6 +540,11 @@ bool UDungeonGenerationV2Helpers::CreatePathToTarget(TMap<FVector2D, FTileInfo>&
 
 				UpdateTileDirections(TileLayout, CurrentLocation, NextLocation);
 			}
+
+			// Set the final direction of the path
+			FTileInfo& FinalTile = TileLayout.FindChecked(Path.Last());
+			FinalTile.Directions[FinalDirection] = true;
+			
 			return true;
 		}
 	}

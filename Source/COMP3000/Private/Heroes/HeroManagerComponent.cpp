@@ -3,8 +3,10 @@
 
 #include "Heroes/HeroManagerComponent.h"
 
+#include "Helpers/DungeonGenerationV2Helpers.h"
 #include "Heroes/HeroGenerator.h"
 #include "Heroes/PlayerBaseAbilities.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 UHeroManagerComponent::UHeroManagerComponent()
@@ -20,6 +22,8 @@ void UHeroManagerComponent::BeginPlay()
 	Super::BeginPlay();
 	
 	if (IsValid(XPLevelDataTable)) XPLevelDataTable->GetAllRows("GetXP Level DataTable", XPLevelArray);
+
+	FindNearestSpawnPoint();
 }
 
 void UHeroManagerComponent::SetupReferences(UPlayerBaseAbilities* InPlayerBaseAbilitiesRef,
@@ -37,6 +41,19 @@ void UHeroManagerComponent::SetHeroDataArray(TArray<UHeroDataInstance*> InHeroDa
 		UHeroDataInstance* NewHeroData = DuplicateObject<UHeroDataInstance>(HeroData, this);
 		HeroDataArray.Add(NewHeroData);
 	}
+
+	SwapHeroByIndexUnchecked(0, false);
+
+	if (IsValid(MainCharacterRef)) {
+		FTimerHandle TimerHandle;
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &UHeroManagerComponent::SetupIconsFromGen, 0.4f, false);
+	}
+}
+
+void UHeroManagerComponent::SetupIconsFromGen() {
+	if (!IsValid(HeroGeneratorRef)) return;
+	HeroGeneratorRef->SetupIcons(HeroDataArray);
+	bIconsSetup = true;
 }
 
 void UHeroManagerComponent::SwapHero(const FInputActionValue& Value) {
@@ -65,8 +82,44 @@ void UHeroManagerComponent::SwapHeroByIndex(int32 Index) {
 	CurrentHeroIndex = Index;
 	HeroGeneratorRef->SetMeshes(HeroDataArray[Index]);
 
+	if (IsValid(HeroDataArray[Index]->HeroStats.SwapFX)) UNiagaraFunctionLibrary::SpawnSystemAttached(HeroDataArray[Index]->HeroStats.SwapFX, MainCharacterRef->GetMesh(), 
+"Pelvis", FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
+
 	PlayerBaseAbilitiesRef->SetDashMaxCharges(HeroDataArray[Index]->HeroStats.MaxDashCount);
 	PlayerBaseAbilitiesRef->SetDashDuration(HeroDataArray[Index]->HeroStats.DashDuration);
+	PlayerBaseAbilitiesRef->SetDashVFX(HeroDataArray[Index]->HeroStats.SwapFX, HeroDataArray[Index]->HeroStats.DashTrailVFX);
+
+	PlayerBaseAbilitiesRef->SetAbility1Instance(HeroDataArray[Index]->Ability1InstanceOG);
+	PlayerBaseAbilitiesRef->SetAbility2Instance(HeroDataArray[Index]->Ability2InstanceOG);
+	PlayerBaseAbilitiesRef->SetAbility3Instance(HeroDataArray[Index]->Ability3InstanceOG);
+	PlayerBaseAbilitiesRef->SetUltimateAbilityInstance(HeroDataArray[Index]->UltimateAbilityInstanceOG);
+
+	if (IsValid(MainCharacterRef)) MainCharacterRef->AudioManager->PlayHeroSwapSound();
+		
+	PlayerBaseAbilitiesRef->RefreshAbilityIcons.Broadcast();
+	HeroSwappedEvent.Broadcast();
+}
+
+void UHeroManagerComponent::SwapHeroByIndexUnchecked(int32 Index, bool bSpawnParticles) {
+	if (!IsValid(PlayerBaseAbilitiesRef) || !IsValid(HeroGeneratorRef)) return;
+
+	if (PlayerBaseAbilitiesRef->IsAnyAbilityPlayingOrCasting()) return;
+
+	if (!HeroDataArray.IsValidIndex(Index)) return;
+
+	if (HeroDataArray[Index]->HeroStats.HP <= 0) return;
+
+	if (IsValid(MainCharacterRef) && IsValid(SwapHeroShakeClass)) MainCharacterRef->SavedController->ClientStartCameraShake(SwapHeroShakeClass);
+
+	CurrentHeroIndex = Index;
+	HeroGeneratorRef->SetMeshes(HeroDataArray[Index]);
+
+	if (IsValid(HeroDataArray[Index]->HeroStats.SwapFX) && bSpawnParticles) UNiagaraFunctionLibrary::SpawnSystemAttached(HeroDataArray[Index]->HeroStats.SwapFX, MainCharacterRef->GetMesh(), 
+"Pelvis", FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
+
+	PlayerBaseAbilitiesRef->SetDashMaxCharges(HeroDataArray[Index]->HeroStats.MaxDashCount);
+	PlayerBaseAbilitiesRef->SetDashDuration(HeroDataArray[Index]->HeroStats.DashDuration);
+	PlayerBaseAbilitiesRef->SetDashVFX(HeroDataArray[Index]->HeroStats.SwapFX, HeroDataArray[Index]->HeroStats.DashTrailVFX);
 
 	PlayerBaseAbilitiesRef->SetAbility1Instance(HeroDataArray[Index]->Ability1InstanceOG);
 	PlayerBaseAbilitiesRef->SetAbility2Instance(HeroDataArray[Index]->Ability2InstanceOG);
@@ -76,6 +129,19 @@ void UHeroManagerComponent::SwapHeroByIndex(int32 Index) {
 	PlayerBaseAbilitiesRef->RefreshAbilityIcons.Broadcast();
 	HeroSwappedEvent.Broadcast();
 }
+
+UTexture2D* UHeroManagerComponent::GetCurrentHeroIcon() {
+	if (!HeroDataArray.IsValidIndex(CurrentHeroIndex)) return nullptr;
+
+	return HeroDataArray[CurrentHeroIndex]->Thumbnail;
+}
+
+UTexture2D* UHeroManagerComponent::GetHeroIconByIndex(int32 Index) {
+	if (!HeroDataArray.IsValidIndex(Index)) return nullptr;
+
+	return HeroDataArray[Index]->Thumbnail;
+}
+
 
 void UHeroManagerComponent::TookDamage() {
 	if (bHasIFrames) return;
@@ -87,7 +153,28 @@ void UHeroManagerComponent::TookDamage() {
 	HeroDataArray[CurrentHeroIndex]->HeroStats.HP--;
 	HPChangedEvent.Broadcast();
 
+	if (IsValid(MainCharacterRef)) MainCharacterRef->AudioManager->PlayHurtSound(true);
+	
 	HeroDeath(); // Check if players dead
+}
+
+void UHeroManagerComponent::KillVolumeDamage() {
+	if (bHasIFrames) return;
+
+	GiveIFrames();
+
+	if (IsValid(MainCharacterRef) && IsValid(DamageShakeClass)) MainCharacterRef->SavedController->ClientStartCameraShake(DamageShakeClass);
+
+	HeroDataArray[CurrentHeroIndex]->HeroStats.HP--;
+	HPChangedEvent.Broadcast();
+
+	if (IsValid(MainCharacterRef)) MainCharacterRef->AudioManager->PlayHurtSound(true);
+
+	if (HeroDataArray[CurrentHeroIndex]->HeroStats.HP > 0) {
+		RespawnHero();
+		if (IsValid(HeroDataArray[CurrentHeroIndex]->HeroStats.SwapFX)) UNiagaraFunctionLibrary::SpawnSystemAttached(HeroDataArray[CurrentHeroIndex]->HeroStats.SwapFX, MainCharacterRef->GetMesh(), 
+"Pelvis", FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
+	} else HeroDeath(); // Check if players dead
 }
 
 void UHeroManagerComponent::GiveIFrames() {
@@ -112,16 +199,20 @@ void UHeroManagerComponent::TookHealing() {
 void UHeroManagerComponent::HeroDeath() {
 	if (HeroDataArray[CurrentHeroIndex]->HeroStats.HP > 0) return;
 
+	if (IsValid(MainCharacterRef)) MainCharacterRef->AudioManager->PlayDeathSound(true);
+
 	// Find a hero with more than 0 HP
 	const int32 NextAvailableHeroIndex = FindAnyHealthyHeroByIndex();
 
 	// Swap to hero with more than 0 hp
 	if (NextAvailableHeroIndex != -1) {
+		RespawnHero();
 		SwapHeroByIndex(NextAvailableHeroIndex);
 	} else {
 		// No available heroes with more than 0 HP
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("No available heroes with more than 0 HP"));
+		UGameplayStatics::OpenLevel(GetWorld(), "Defeat");
 	}
+	
 }
 
 void UHeroManagerComponent::AddXP(int32 XPToAdd) {
@@ -140,7 +231,8 @@ void UHeroManagerComponent::AddXP(int32 XPToAdd) {
 
 void UHeroManagerComponent::LevelUp() {
 	if (HeroDataArray[CurrentHeroIndex]->HeroStats.Level == 10) return;
-	
+
+	if (IsValid(MainCharacterRef)) MainCharacterRef->AudioManager->PlayLevelUpSound();
 	HeroDataArray[CurrentHeroIndex]->HeroStats.Level++;
 	LevelUpEvent.Broadcast();
 
@@ -165,6 +257,8 @@ void UHeroManagerComponent::LevelUp() {
 		PlayerBaseAbilitiesRef->SetUltimateAbilityInstance(HeroDataArray[CurrentHeroIndex]->UltimateAbilityInstanceOG);
 		
 		PlayerBaseAbilitiesRef->RefreshAbilityIcons.Broadcast();
+
+		HeroDataArray[CurrentHeroIndex]->HeroStats.ValidAbilities.RemoveAt(RandomIndex);
 	}
 }
 
@@ -240,6 +334,40 @@ int32 UHeroManagerComponent::GetCurrentXPMax() {
 	}
 
 	return MaxXP;
+}
+
+void UHeroManagerComponent::RespawnHero() {
+	if (!IsValid(MainCharacterRef)) return;
+	if (!IsValid(PlayerSpawnPoint)) FindNearestSpawnPoint();
+	if (!IsValid(PlayerSpawnPoint)) return;
+	
+	MainCharacterRef->SetActorLocation(PlayerSpawnPoint->GetActorLocation(), false, nullptr, ETeleportType::TeleportPhysics);
+}
+
+void UHeroManagerComponent::FindNearestSpawnPoint() {
+	if (!IsValid(GetWorld())) return;
+	if (!IsValid(MainCharacterRef)) return;
+	
+	TArray<APSpawnPoint*> SpawnPointsArray;
+	UDungeonGenerationV2Helpers::GetSpawnPointsInWorld(GetWorld(), SpawnPointsArray);
+
+	if (SpawnPointsArray.Num() == 0) return;
+
+	FVector PlayerLocation = MainCharacterRef->GetActorLocation();
+	APSpawnPoint* NearestSpawnPoint = nullptr;
+	float MinDistanceSquared = MAX_flt;
+
+	for (APSpawnPoint* SPoint : SpawnPointsArray)
+	{
+		float DistanceSquared = FVector::DistSquared(PlayerLocation, SPoint->GetActorLocation());
+		if (DistanceSquared < MinDistanceSquared)
+		{
+			MinDistanceSquared = DistanceSquared;
+			NearestSpawnPoint = SPoint;
+		}
+	}
+
+	if (IsValid(NearestSpawnPoint)) SetSpawnPoint(NearestSpawnPoint);
 }
 
 int32 UHeroManagerComponent::GetCurrentHP() {

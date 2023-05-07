@@ -1,0 +1,15 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "c:\\users\\callu\\documents\\comp3000 5.1\\plugins\\marketplace\\niagarauirenderer\\intermediate\\build\\win64\\unrealgame\\inc\\niagarauirenderer\\uht\\niagarauiactor.gen.cpp",
+        "ProvidedModule": "",
+        "PCH": "c:\\users\\callu\\documents\\comp3000 5.1\\intermediate\\build\\win64\\x64\\comp3000\\shipping\\engine\\sharedpch.engine.shadowerrors.inclorderunreal5_0.h.pch",
+        "Includes": [
+            "c:\\users\\callu\\documents\\comp3000 5.1\\plugins\\marketplace\\niagarauirenderer\\intermediate\\build\\win64\\x64\\unrealgame\\shipping\\niagarauirenderer\\definitions.niagarauirenderer.h",
+            "c:\\users\\callu\\documents\\comp3000 5.1\\plugins\\marketplace\\niagarauirenderer\\source\\niagarauirenderer\\public\\niagarauiactor.h",
+            "c:\\users\\callu\\documents\\comp3000 5.1\\plugins\\marketplace\\niagarauirenderer\\intermediate\\build\\win64\\unrealgame\\inc\\niagarauirenderer\\uht\\niagarauiactor.generated.h"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

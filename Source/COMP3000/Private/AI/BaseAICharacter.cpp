@@ -12,6 +12,7 @@
 #include "Heroes/Abilities/AbilityData.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Navigation/PathFollowingComponent.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 #include "UI/AI/UWB_EnemyStatusBar.h"
@@ -28,6 +29,8 @@ ABaseAICharacter::ABaseAICharacter()
 
 	EnemyStatusEffectSystemComponent = CreateDefaultSubobject<UEnemyStatusEffectSystem>(TEXT("EnemyStatusEffectSystem"));
 	EnemyBaseAbilitiesComponent = CreateDefaultSubobject<UEnemyBaseAbilities>(TEXT("EnemyBaseAbilitiesComponent"));
+	BaseAudioManagerComponent = CreateDefaultSubobject<UBaseAudioManager>(TEXT("BaseAudioManagerComponent"));
+	BaseAudioManagerComponent->SetupAttachment(RootComponent);
 
 	DetectionBoxFront = CreateDefaultSubobject<UBoxComponent>(TEXT("DetectionBoxFront"));
 	DetectionBoxFront->SetupAttachment(RootComponent);
@@ -41,6 +44,48 @@ ABaseAICharacter::ABaseAICharacter()
 	Health = 100.f;
 	bImpulseable = false;
 	XPDeathReward = 10;
+}
+
+void ABaseAICharacter::ActivateAI()
+{
+	GetMovementComponent()->SetComponentTickEnabled(true);
+	GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	if (IsValid(ControllerRef)) {
+		if (IsValid(ControllerRef->GetAIBehaviourTreeComponent())) ControllerRef->GetAIBehaviourTreeComponent()->ResumeLogic("AI Activated");
+	}
+	if (IsValid(ControllerRef)) {
+		if (IsValid(ControllerRef->GetPerceptionComponent())) ControllerRef->GetPerceptionComponent()->SetComponentTickEnabled(true);
+	}
+}
+
+void ABaseAICharacter::DeactivateAI()
+{
+	GetMovementComponent()->SetComponentTickEnabled(false);
+	GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
+	if (IsValid(ControllerRef)) {
+		if (IsValid(ControllerRef->GetAIBehaviourTreeComponent())) ControllerRef->GetAIBehaviourTreeComponent()->PauseLogic("AI Deactivated");
+	}
+	if (IsValid(ControllerRef)) {
+		if (IsValid(ControllerRef->GetPerceptionComponent())) ControllerRef->GetPerceptionComponent()->SetComponentTickEnabled(false);
+	}
+}
+
+void ABaseAICharacter::InnerAIActivation() {
+	if (!IsValid(ControllerRef)) return;
+
+	if (IsValid(ControllerRef->GetAIPerceptionComponent()))ControllerRef->GetAIPerceptionComponent()->SetComponentTickInterval(0.0f);
+	if (IsValid(ControllerRef->GetAIBehaviourTreeComponent()))ControllerRef->GetAIBehaviourTreeComponent()->SetComponentTickInterval(0.0f);
+	if (IsValid(ControllerRef->GetPathFollowingComponent()))ControllerRef->GetPathFollowingComponent()->SetComponentTickInterval(0.01f);
+	if (IsValid(GetMovementComponent())) GetMovementComponent()->SetComponentTickInterval(0.0f);
+}
+
+void ABaseAICharacter::InnerAIDeactivation() {
+	if (!IsValid(ControllerRef)) return;
+
+	if (IsValid(ControllerRef->GetAIPerceptionComponent()))ControllerRef->GetAIPerceptionComponent()->SetComponentTickInterval(0.3f);
+	if (IsValid(ControllerRef->GetAIBehaviourTreeComponent()))ControllerRef->GetAIBehaviourTreeComponent()->SetComponentTickInterval(0.5f);
+	if (IsValid(ControllerRef->GetPathFollowingComponent()))ControllerRef->GetPathFollowingComponent()->SetComponentTickInterval(0.5f);
+	if (IsValid(GetMovementComponent())) GetMovementComponent()->SetComponentTickInterval(0.5f);
 }
 
 void ABaseAICharacter::PostInitializeComponents() {
@@ -58,6 +103,8 @@ void ABaseAICharacter::BeginPlay()
 
 	UUWB_EnemyStatusBar* StatBarRef = Cast<UUWB_EnemyStatusBar>(StatusBar->GetUserWidgetObject());
 	if (IsValid(StatBarRef)) StatBarRef->SetupComponents(this, FMath::Clamp(MaxHealth / 20.f, 3.f, 8.f));
+
+	//SetActorTickEnabled(false);
 }
 
 // Called every frame
@@ -77,6 +124,7 @@ void ABaseAICharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 void ABaseAICharacter::SummonProjectile(int32 NumberOfProjectiles) {
 	// Set the initial spread angle for the first projectile
+	BaseAudioManagerComponent->PlayProjectileSummonSound();
 	float SpreadAngle = 5.0f; 
 
 	// Loop through each projectile
@@ -147,7 +195,10 @@ void ABaseAICharacter::ReceivedDamage(float Damage, AActor* DamageCauser) {
 	
 	if (Health <= 0) {
 		DeathStart();
+		return;
 	}
+
+	BaseAudioManagerComponent->PlayHurtSound();
 }
 
 void ABaseAICharacter::DeathDestroy() {
@@ -182,6 +233,10 @@ void ABaseAICharacter::MeleeDamageColliderOnOverlap(UPrimitiveComponent* Overlap
 
 void ABaseAICharacter::Ragdoll(float Duration)
 {
+	if (bIsRagdoll) return;
+	if (!IsValid(GetMesh())) return;
+
+	SetActorTickEnabled(true);
 	ControllerRef->GetAIBehaviourTreeComponent()->PauseLogic(TEXT("Ragdoll"));
 	GetMesh()->SetAllBodiesSimulatePhysics(true);
 	GetMesh()->SetCollisionProfileName(TEXT("Ragdoll"));
@@ -206,6 +261,10 @@ void ABaseAICharacter::UpdateRagdoll() {
 
 void ABaseAICharacter::RecoverFromRagdoll()
 {
+	if (!IsValid(GetMesh())) return;
+
+	SetActorTickEnabled(false);
+	
 	GetMesh()->SetSimulatePhysics(false);
 	GetMesh()->SetAllBodiesSimulatePhysics(false);
 	GetMesh()->SetCollisionProfileName(TEXT("NoCollision"));
@@ -227,7 +286,12 @@ void ABaseAICharacter::SetTarget(AActor* NewTarget) {
 	if (!IsValid(NewTarget) || !IsValid(ControllerRef)) return;
 	
 	if (AMainCharacter* CharacterTarget = Cast<AMainCharacter>(NewTarget))
-		ControllerRef->GetBlackboardComponent()->SetValueAsObject("ActorTarget", CharacterTarget);
+		if (ControllerRef->GetBlackboardComponent()->GetValueAsObject("ActorTarget") != CharacterTarget) {
+			ControllerRef->GetBlackboardComponent()->SetValueAsObject("ActorTarget", CharacterTarget);
+			BaseAudioManagerComponent->PlayAlertedSound();
+		}
+
+	GetMovementComponent()->SetComponentTickInterval(0.0f);
 
 	ControllerRef->GetAIPerceptionComponent()->SetActive(false);
 	StatusBar->SetVisibility(true);
@@ -247,6 +311,8 @@ void ABaseAICharacter::DeathStart() {
 	}
 
 	if (TryDeathCry()) return;
+
+	BaseAudioManagerComponent->PlayDeathSound();
 	
 	if (!IsValid(ControllerRef)) {
 		DeathDestroy();
@@ -278,6 +344,8 @@ void ABaseAICharacter::DeathStart() {
 }
 
 void ABaseAICharacter::DeathDrops() {
+	if (!IsValid(XPOrbClass)) return;
+		
 	const float Angle = 50;
 	const float Strength = 150;
 

@@ -35,6 +35,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Generation Functions")
 	void SetMeshes(UHeroDataInstance* InHero);
+
+	UFUNCTION()
+	void SetupIcons(TArray<UHeroDataInstance*>& InHeroDataArray);
 	
 protected:
 	// Called when the game starts
@@ -43,7 +46,7 @@ protected:
 public:	
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
+	
 	//Mesh Components
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
 	TObjectPtr<USkeletalMeshComponent> AHeadCoveringNoHair;
@@ -336,5 +339,6 @@ private:
 
 	void SetupAttachmentRuntime();
 };
+
 
 

@@ -24,7 +24,8 @@ enum ETileType
 	EndTile,
 	AdditionalTile,
 	SpecialTile,
-	OffTile
+	OffTile,
+	KeyTile
 };
 
 UENUM(BlueprintType)

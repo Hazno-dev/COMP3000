@@ -18,7 +18,10 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "EnhancedInputComponent.h"
+#include "Interfaces/AIActivationInterface.h"
 #include "PlayerAnimInstance.h"
+#include "AI/BaseAICharacter.h"
+#include "Components/SceneCaptureComponent2D.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 // Sets default values
@@ -37,7 +40,33 @@ AMainCharacter::AMainCharacter()
 	PlayerBaseAbilitiesComponent = CreateDefaultSubobject<UPlayerBaseAbilities>(TEXT("PlayerBaseAbilities"));
 	HeroGeneratorComponent = CreateDefaultSubobject<UHeroGenerator>(TEXT("HeroGenerator"));
 	HeroManagerComponent = CreateDefaultSubobject<UHeroManagerComponent>(TEXT("HeroManager"));
+	AICollider = CreateDefaultSubobject<USphereComponent>(TEXT("AICollider"));
+	AICollider->SetupAttachment(RootComponent);
+	InnerAICollider = CreateDefaultSubobject<USphereComponent>(TEXT("InnerAICollider"));
+	InnerAICollider->SetupAttachment(RootComponent);
+	AudioManager = CreateDefaultSubobject<UBaseAudioManager>(TEXT("AudioManager"));
+	AudioManager->SetupAttachment(RootComponent);
+	
+	ThumbnailCaptureComponent = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("ThumbnailCaptureComponent"));
+	//ThumbnailCaptureComponent->SetMobility(EComponentMobility::Movable);
+	//ThumbnailCaptureComponent->RegisterComponent();
+	ThumbnailCaptureComponent->SetupAttachment(RootComponent);
+	ThumbnailCaptureComponent->TextureTarget = nullptr;
+	ThumbnailCaptureComponent->bCaptureEveryFrame = false;
 
+	AudioListenerSpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("AudioListenerSprintArmComponent"));
+	AudioListenerSpringArmComponent->SetupAttachment(RootComponent);
+	AudioListenerSpringArmComponent->TargetArmLength = 0.0f;
+	AudioListenerSpringArmComponent->bEnableCameraLag = false;
+	AudioListenerSpringArmComponent->bDoCollisionTest = false;
+	AudioListenerSpringArmComponent->bUsePawnControlRotation = false;
+	AudioListenerSpringArmComponent->bInheritPitch = false;
+	AudioListenerSpringArmComponent->bInheritYaw = false;
+	AudioListenerSpringArmComponent->bInheritRoll = false;
+
+	AudioListenerComponent = CreateDefaultSubobject<USceneComponent>(TEXT("AudioListenerComponent"));
+	AudioListenerComponent->SetupAttachment(AudioListenerSpringArmComponent);
+	
 	H_Left_ParticleSystem = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("H_Left_ParticleSystem"));
 	H_Right_ParticleSystem = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("H_Right_ParticleSystem"));
 
@@ -96,7 +125,8 @@ void AMainCharacter::BeginPlay()
 	SavedController->Possess(this);
 	SavedController->bShowMouseCursor = true;
 	SavedController->bEnableStreamingSource = true;
-	SavedController->SetIsSpatiallyLoaded(true);
+	//SavedController->SetIsSpatiallyLoaded(true);
+	SavedController->SetAudioListenerOverride(AudioListenerComponent, FVector(0,0,0), FRotator(0,0,0));
 
 	//Assign TChannel for aiming
 	TraceChannel = UEngineTypes::ConvertToTraceType(ECC_Visibility);
@@ -111,7 +141,14 @@ void AMainCharacter::BeginPlay()
 	HeroManagerComponent->SetupReferences(PlayerBaseAbilitiesComponent, HeroGeneratorComponent, this);
 
 	TArray<UHeroDataInstance*> HeroDataArray = HeroGeneratorComponent->GenerateHero();
-	if (HeroDataArray.Num() > 0) HeroManagerComponent->SetHeroDataArray(HeroDataArray);
+	if (HeroDataArray.Num() > 0) {
+		HeroManagerComponent->SetHeroDataArray(HeroDataArray);
+	}
+
+	AICollider->OnComponentBeginOverlap.AddDynamic(this, &AMainCharacter::OnAIColliderBeginOverlap);
+	AICollider->OnComponentEndOverlap.AddDynamic(this, &AMainCharacter::OnAIColliderEndOverlap);
+	InnerAICollider->OnComponentBeginOverlap.AddDynamic(this, &AMainCharacter::OnInnerAIColliderBeginOverlap);
+	InnerAICollider->OnComponentEndOverlap.AddDynamic(this, &AMainCharacter::OnInnerAIColliderEndOverlap);
 }
 
 
@@ -126,6 +163,9 @@ void AMainCharacter::Tick(float DeltaTime)
 	WorldCursorUpdate();
 
 	FireTimer += DeltaTime;
+	
+	FootstepCounter -= DeltaTime;
+	Footsteps();
 }
 
 // Called to bind functionality to input
@@ -142,7 +182,7 @@ void AMainCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 			PlayerEnhancedInputComponent->BindAction(MovementAction, ETriggerEvent::Triggered, this, &AMainCharacter::EnhancedMove);
 		}
 		if (JumpAction) {
-			PlayerEnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+			PlayerEnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AMainCharacter::JumpInternals);
 			PlayerEnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 		}
 		if (FireAction) {
@@ -176,6 +216,9 @@ void AMainCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 		if (SwapHeroAction) {
 			PlayerEnhancedInputComponent->BindAction(SwapHeroAction, ETriggerEvent::Started, HeroManagerComponent, &UHeroManagerComponent::SwapHero);
 		}
+		if (OptionsAction) {
+			PlayerEnhancedInputComponent->BindAction(OptionsAction, ETriggerEvent::Started, this, &AMainCharacter::Pause);
+		}
 	}
 }
 
@@ -206,9 +249,63 @@ void AMainCharacter::SetHandParticlesOnR(bool On) {
 	H_Right_ParticleSystem->SetActive(On);
 }
 
+void AMainCharacter::Pause() {
+	if (UGameplayStatics::IsGamePaused(GetWorld())) {
+		if (IsValid(PauseMenu)) {
+			PauseMenu->RemoveFromParent();
+			UGameplayStatics::SetGamePaused(GetWorld(), false);
+		}
+	}
+
+	
+	if (IsValid(PauseMenuBP)) {
+		UGameplayStatics::SetGamePaused(GetWorld(), true);
+		PauseMenu = CreateWidget<UUserWidget>(GetWorld(), PauseMenuBP);
+		if (IsValid(PauseMenu)) PauseMenu->AddToViewport();
+		else UGameplayStatics::SetGamePaused(GetWorld(), false);
+	}
+}
+
 
 void AMainCharacter::ShootProjectile() {
+	if (!IsValid(ProjectileSpawner)) return;
+
+	AudioManager->PlayProjectileSummonSound();
 	ProjectileSpawner->SpawnProjectile(ProjectileSpawner->GetComponentLocation(), GetActorRotation());
+}
+
+void AMainCharacter::OnAIColliderBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult) {
+	if (IAIActivationInterface* AIActor = Cast<IAIActivationInterface>(OtherActor))
+	{
+		AIActor->ActivateAI();
+	}
+}
+
+void AMainCharacter::OnAIColliderEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex) {
+	if (IAIActivationInterface* AIActor = Cast<IAIActivationInterface>(OtherActor))
+	{
+		AIActor->DeactivateAI();
+	}
+		
+}
+
+void AMainCharacter::OnInnerAIColliderBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult) {
+	if (IAIActivationInterface* AIActor = Cast<IAIActivationInterface>(OtherActor))
+	{
+		AIActor->InnerAIActivation();
+	}
+	
+}
+
+void AMainCharacter::OnInnerAIColliderEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex) {
+	if (IAIActivationInterface* AIActor = Cast<IAIActivationInterface>(OtherActor))
+	{
+		//AIActor->InnerAIDeactivation();
+	}
 }
 
 
@@ -254,12 +351,16 @@ void AMainCharacter::EnhancedMove(const FInputActionValue& Value) {
 
 void AMainCharacter::Punch(const FInputActionInstance& ActionInstance)
 {
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("PunchStarted")));
 	if (PlayerBaseAbilitiesComponent->IsAnyAbilityPlayingOrCasting()) return;
+	
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("FireTimer: %f"), FireTimer));
+
 	if (FireTimer < 0.56f) return;
 
 	Punching = true;
 	
-	FireTimer = 0.f;;
+	FireTimer = 0.f;
 	Armed = true;
 	FistFire.Broadcast();
 	SetHandParticlesOnL(true);
@@ -278,6 +379,12 @@ void AMainCharacter::ToggleWeaponArm() {
 	Armed = !Armed;
 	ArmedToggle.Broadcast();
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Armed: %d"), Armed));
+}
+
+void AMainCharacter::JumpInternals() {
+
+	AudioManager->PlayJumpSound();
+	Jump();
 }
 
 FRotator AMainCharacter::GetAimRotation() {
@@ -304,7 +411,12 @@ void AMainCharacter::WorldCursorUpdate() {
 	WorldCursor->ScaleCursor(PlayerBaseAbilitiesComponent->GetCurrentCastingAbility()->RangeCastSize);
 }
 
-
+void AMainCharacter::Footsteps() {
+	if (FootstepCounter <= 0.0f && GetMovementComponent()->IsMovingOnGround() && GetVelocity().Size() > 0.0f) {
+		FootstepCounter = 0.37f;
+		AudioManager->PlayFootstepSound();
+	}
+}
 
 
 

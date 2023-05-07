@@ -28,6 +28,16 @@ void ALevelGeneratorV2::BeginPlay()
 	//Return if safety checks fail
 	if (!SafetyChecks()) return;
 
+	TArray<FEnemyData*> EnemyDataTemp;
+	if (EnemyDataTable) EnemyDataTable->GetAllRows<FEnemyData>(TEXT("GetAllRows in EnemyData"), EnemyDataTemp);
+	else UE_LOG(LogTemp, Warning, TEXT("EnemyDataTable is not valid."));
+	for (FEnemyData* Enemy : EnemyDataTemp)
+	{
+		if (Enemy) EnemyData.Add(*Enemy);
+	}
+
+
+	
 	//Setup Random Seed
 	if (bIsSeedRandom) SeedStream.GenerateNewSeed();
 	else SeedStream.Initialize(Seed);
@@ -36,6 +46,7 @@ void ALevelGeneratorV2::BeginPlay()
 	InitializeDungeon();
 }
 
+#if WITH_EDITOR
 //Reset defaults on generation mode change
 void ALevelGeneratorV2::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -61,6 +72,7 @@ void ALevelGeneratorV2::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 		}
 	}
 }
+#endif
 
 void ALevelGeneratorV2::InitializeDungeon() {
 
@@ -89,7 +101,14 @@ void ALevelGeneratorV2::InitializeDungeon() {
 
 	if (bOutBranching) GenerateBranches();
 
-	SpawnDungeonTiles();
+	if (bHasKeyTile && bOutBranching) {
+		if (!SpawnKeyTile()) {
+			ResetAndRegenerate();
+		} else {
+			FTimerHandle AllTilesLoadedTimer;
+			GetWorld()->GetTimerManager().SetTimer(AllTilesLoadedTimer, this, &ALevelGeneratorV2::SpawnDungeonTiles, 1.0f, false);
+		}
+	}
 }
 
 void ALevelGeneratorV2::StartingTile() {
@@ -118,9 +137,10 @@ void ALevelGeneratorV2::GenerateDungeonRandom(int32 Amount) {
 
 		//Stepback or not based on probability
 		FVector2D NextLocation;
-		if (SeedStream.RandRange(0, 100) <= StepBackChance)
-			 NextLocation = UDungeonGenerationV2Helpers::BacktrackerRandom(
-				TileLayout, CurrentLocation, SeedStream, MaxCorridorsInRow, TargetLocation, MinDistanceFromTarget);
+		if (SeedStream.RandRange(0, 100) <= StepBackChance) 
+			NextLocation = UDungeonGenerationV2Helpers::BacktrackerRandom(
+			   TileLayout, CurrentLocation, SeedStream, MaxCorridorsInRow, TargetLocation, MinDistanceFromTarget, true);
+
 		else NextLocation = UDungeonGenerationV2Helpers::FindNextLocationRandom(
 				TileLayout, CurrentLocation, SeedStream, MaxCorridorsInRow, TargetLocation, MinDistanceFromTarget);
 
@@ -156,7 +176,6 @@ void ALevelGeneratorV2::GenerateDungeonHybrid(int32 Amount) {
 	} else {
 		UE_LOG(LogTemp, Error, TEXT("Path Not Created"));
 	}
-	
 }
 
 void ALevelGeneratorV2::GenerateDungeonFixed() {
@@ -167,19 +186,38 @@ void ALevelGeneratorV2::GenerateDungeonFixed() {
 	}
 }
 
-void ALevelGeneratorV2::GenerateBranches() {
+bool ALevelGeneratorV2::GenerateBranches() {
 	TArray<FVector2D> TileLocations = UDungeonGenerationV2Helpers::GetTileLayoutWithoutOffTiles(TileLayout, false);
 	for (int32 i = 0; i < OutBranchingCount; ++i) {
-		// Pick a random tile location
-		const int32 RandomIndex = SeedStream.RandRange(0, TileLocations.Num() - 1);
-		CurrentLocation = TileLocations[RandomIndex];
 
-		// Pick a random length
-		const int32 BranchLength = SeedStream.RandRange(OutBranchingMin, OutBranchingMax);
+		for (auto& Entry : TileLayout) {
+			if (Entry.Value.Type != GenericTile) continue;
+			
+			CurrentLocation = Entry.Key;
 
-		//Generate Branch
-		UDungeonGenerationV2Helpers::BranchOutRandomPaths(TileLayout, CurrentLocation, SeedStream, MaxCorridorsInRow, BranchLength);
+			// Pick a random length
+			const int32 BranchLength = SeedStream.RandRange(OutBranchingMin, OutBranchingMax);
+
+			//Generate Branch && Set Key Tile
+			if (UDungeonGenerationV2Helpers::BranchOutRandomPaths(TileLayout, CurrentLocation, SeedStream, MaxCorridorsInRow, BranchLength)) break;
+		}
 	}
+	return true;
+}
+
+bool ALevelGeneratorV2::SpawnKeyTile() {
+	for (auto& Entry : TileLayout) {
+		if (Entry.Value.Type != GenericTile) continue;
+		
+		TArray<bool> CurrentTileMapDirections;
+		Entry.Value.Directions.GenerateValueArray(CurrentTileMapDirections);
+		
+		if (UDungeonGenerationV2Helpers::GetConnectionTypeFromDirections(CurrentTileMapDirections) != Single) continue;
+		
+		Entry.Value.Type = KeyTile;
+		return true;
+	}
+	return false;
 }
 
 void ALevelGeneratorV2::SpawnDungeonTiles() {
@@ -237,9 +275,11 @@ EAttachmentRule::SnapToTarget, EAttachmentRule::KeepRelative,true);
 			PreviousTiles.Add(TileClass);
 
 			++SpawnedTileCounts[TileClass];
+
+			ATileBase* NewTileClass = NewObject<ATileBase>(this,TileClass);
 			
 			FTransform SpawnTransform(FRotator::ZeroRotator, SpawnLocation);
-			ATileBase* SpawnedTile = GetWorld()->SpawnActor<ATileBase>(TileClass, SpawnTransform);
+			ATileBase* SpawnedTile = GetWorld()->SpawnActor<ATileBase>(NewTileClass->GetClass(), SpawnTransform);
 			SpawnedTile->AttachToActor(this, TransformInfo);
 
 			// Get the correct rotation using the TileInfo and the spawned tile
@@ -257,10 +297,11 @@ EAttachmentRule::SnapToTarget, EAttachmentRule::KeepRelative,true);
 
 				FString LevelInstanceName = FString("Tile") + FString::FromInt(SpawnedTiles.Num());
 				SpawnedTile->LevelInstance = ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(GetWorld(), SpawnedTile->WorldAsset, LevelTransform.GetLocation(), LevelTransform.Rotator(), SpawnedTile->bIsLevelLoaded);
+				SpawnedTile->LevelInstance->bShouldBlockOnLoad = true;
 				SpawnedTile->LevelInstance->SetShouldBeLoaded(true);
 				SpawnedTile->LevelInstance->SetShouldBeVisible(true);
 				SpawnedTile->SetupDelegate();
-				SpawnedTile->LevelInstance->OnLevelLoaded.AddDynamic(this, &ALevelGeneratorV2::TileLoaded);
+				SpawnedTile->OnLevelLoadedCustom.AddDynamic(this, &ALevelGeneratorV2::TileLoaded);
 				MaxLoadedTilesCount++;
 			}
 			SpawnedTile->SetActorHiddenInGame(true);
@@ -269,6 +310,9 @@ EAttachmentRule::SnapToTarget, EAttachmentRule::KeepRelative,true);
 			UE_LOG(LogTemp, Error, TEXT("No matching tile class found for tile info."));
 		}
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Ontilebasespawned broadcasted"));
+	OnTileBaseSpawned.Broadcast(this, SpawnedTiles);
 }
 
 bool ALevelGeneratorV2::SafetyChecks() {
@@ -330,7 +374,7 @@ void ALevelGeneratorV2::UpdateOffTilesFromWorldComponents() {
 	}
 }
 
-void ALevelGeneratorV2::TileLoaded() {
+void ALevelGeneratorV2::TileLoaded(ATileBase* Tile) {
 
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Tile Loaded"));
 
@@ -338,55 +382,110 @@ void ALevelGeneratorV2::TileLoaded() {
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::FromInt(MaxLoadedTilesCount));
 	
 	LoadedTilesCount++;
+	
+	//Check if all tiles are loaded
 	if (LoadedTilesCount == MaxLoadedTilesCount) {
-		
-		AllTilesLoaded();
+		OnAllLevelsGenerated.Broadcast();
 	}
+
+	Tile->OnLevelLoadedCustom.RemoveDynamic(this, &ALevelGeneratorV2::TileLoaded);
 }
 
-void ALevelGeneratorV2::AllTilesLoaded() {
+/*void ALevelGeneratorV2::AllTilesLoaded() {
 	UE_LOG(LogTemp, Warning, TEXT("All tiles loaded"));
-	TArray<APrefabinator*> Prefabinators;
 	UWorld* LevelWorld = GetWorld();
 
 	if (!IsValid(LevelWorld)) return;
 
-	// Function to collect Prefabinators from a given world
-	auto CollectPrefabinators = [](UWorld* InWorld, TArray<APrefabinator*>& OutPrefabinators) {
-		for (TActorIterator<APrefabinator> It(InWorld); It; ++It)
-		{
-			OutPrefabinators.Add(*It);
-		}
-	};
-		
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::FromInt(Prefabinators.Num()));
+	// Collect required actors from the main world
+	TArray<APrefabinator*> Prefabinators;
+	TArray<AEnemySpawnPoint*> EnemySpawnPoints;
+	TArray<AAIGroupManager*> AIGroupManagers;
+	
+	UDungeonGenerationV2Helpers::GetPrefabinatorsInLevel(LevelWorld, Prefabinators);
+	UDungeonGenerationV2Helpers::GetEnemySpawnPointsInLevel(LevelWorld, EnemySpawnPoints);
+	UDungeonGenerationV2Helpers::GetGroupManagersInLevel(LevelWorld, AIGroupManagers);
+	
 
-	// Collect Prefabinators from the main world
-	CollectPrefabinators(LevelWorld, Prefabinators);
+	// Spawn prefabinators
+	for (APrefabinator* Prefabinator : Prefabinators)  Prefabinator->SpawnRandomPrefab(SeedStream);
 
+	// Reset AIGroupManagers into the persistent world
+	for (AAIGroupManager* AIGroupManager : AIGroupManagers) {
+		if (!IsValid(AIGroupManager)) continue;
 		
-	// Collect Prefabinators from level instances
-	for (ULevelStreaming* LevelStreaming : LevelWorld->GetStreamingLevels())
-	{
-		if (LevelStreaming && LevelStreaming->IsLevelLoaded())
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Level Loaded"));
-			UWorld* StreamingWorld = LevelStreaming->GetWorld();
-			if (IsValid(StreamingWorld))
-			{
-				CollectPrefabinators(StreamingWorld, Prefabinators);
+		AAIGroupManager* NewGroupManager = LevelWorld->SpawnActor<AAIGroupManager>(AIGroupManager->GetClass(), AIGroupManager->GetActorLocation(), AIGroupManager->GetActorRotation());
+		NewGroupManager->SphereRadius = AIGroupManager->SphereRadius;
+		NewGroupManager->SphereComponent->SetSphereRadius(AIGroupManager->SphereRadius);
+
+		AIGroupManager->Destroy();
+	}
+	
+	UE_LOG(LogTemp, Warning, TEXT("Enemy Spawn Points Num: %d"), EnemySpawnPoints.Num());
+
+	// Register EnemySpawnPoints to the closest tile for initial spawnings
+	for (AEnemySpawnPoint* EnemySpawnPoint : EnemySpawnPoints) {
+		if (EnemySpawnPoint->bIsRegistered) continue;
+
+		ATileBase* ClosestTile = nullptr;
+		float ClosestDistance = FLT_MAX;
+		float DistanceThreshold = 8000.0f; 
+
+		for (ATileBase* Tile : SpawnedTiles) {
+			if (!IsValid(Tile)) continue;
+
+			UE_LOG(LogTemp, Warning, TEXT("Tile: %s"), *Tile->GetName());
+			
+			float SquaredDistance = FVector::DistSquared(Tile->GetActorLocation(), EnemySpawnPoint->GetActorLocation());
+			if (SquaredDistance < ClosestDistance && SquaredDistance < DistanceThreshold * DistanceThreshold) {
+				ClosestDistance = SquaredDistance;
+				ClosestTile = Tile;
 			}
 		}
+
+		if (IsValid(ClosestTile)) {
+			EnemySpawnPoint->bIsRegistered = true;
+			ClosestTile->TileEnemySpawnPoints.Add(EnemySpawnPoint);
+		}
 	}
 
-	for (APrefabinator* Prefabinator : Prefabinators)
-	{
-		Prefabinator->SpawnRandomPrefab(SeedStream);
+	// Spawn initial enemies
+	if (EnemyData.Num() > 0) {
+		for (auto Tile : SpawnedTiles) SpawnedEnemyCount += Tile->SpawnInitialEnemies(EnemyData, SeedStream);
 	}
-}
+
+	// Spawn additional enemies randomly to reach max enemy count
+	TArray<FEnemyData> EnemyDataCopy = EnemyData;
+	for (auto EnemySpawnPoint : EnemySpawnPoints) {
+		if (SpawnedEnemyCount >= MaxEnemyCount) break;
+		if (EnemySpawnPoint->bHasSpawned) continue;
+		if (EnemySpawnPoint->bSecondPass) continue;
+
+		FEnemyData CurrentEnemyElement;
+		UArrayHelpers::ShuffleArray(EnemyDataCopy, SeedStream);
+		
+		int RandomEnemyInt = SeedStream.RandRange(0, 100);
+
+		if (RandomEnemyInt >= 5) {
+			for (int i = 0; i < EnemyDataCopy.Num(); i++) {
+				if (EnemyDataCopy[i].EnemyType == EEnemyType::Minion) CurrentEnemyElement = EnemyDataCopy[i];
+			}
+		}
+		else {
+			for (int i = 0; i < EnemyDataCopy.Num(); i++) {
+				if (EnemyDataCopy[i].EnemyType == EEnemyType::Elite) CurrentEnemyElement = EnemyDataCopy[i];
+			}
+		}
+
+		EnemySpawnPoint->SpawnEnemy(CurrentEnemyElement);
+		EnemySpawnPoint->bSecondPass = true;
+	}
+}*/
 
 void ALevelGeneratorV2::ResetAndRegenerate() {
 
+	SeedStream.GenerateNewSeed();
+	
 	if (!SpawnedTiles.IsEmpty()) {
 		for(auto Tile: SpawnedTiles) {
 			Tile->Destroy();
